@@ -86,7 +86,7 @@
     background-size:var(--dotGap) var(--dotGap);
     background-position:0 0;
     opacity:.10;
-    animation:bgFxDrift 46s linear infinite;
+    animation:bgFxDrift 31s linear infinite;
   }
   /* 整片朝右下斜着走；位移取两格，无论间距怎么调都无缝 */
   @keyframes bgFxDrift{
@@ -199,6 +199,16 @@
   #preview .pc.safe .pp{color:var(--green)}
   .err{color:var(--red); font-size:13px; display:flex; flex-direction:column; gap:4px}
 
+  /* 演出预览台 */
+  .pvGrid{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:9px}
+  .pvGrid .btn{font-size:12px; padding:6px 11px; box-shadow:0 3px 0 var(--ink-stroke)}
+  .pvGrid .btn:active{transform:translateY(3px); box-shadow:none}
+  .pvLbl{font-size:11px; color:var(--ink3); width:100%; margin:2px 0 -2px}
+  .btn.r1{background:var(--r1d)} .btn.r2{background:var(--r2d)}
+  .btn.r3{background:var(--r3d)} .btn.r4{background:var(--r4d)}
+  .btn.r5{background:var(--r5d)}
+  #pvState{font-size:12px; color:var(--gold); min-height:16px}
+
   /* ============ 抽奖界面 ============ */
   #game{flex:1; display:flex; flex-direction:column; overflow:hidden}
   #shelf{ display:none }   /* 陈列区已隐藏，剩余数量改在底部状态栏显示 */
@@ -236,15 +246,24 @@
   .box .cell{font-size:clamp(34px,4.6vw,50px)}
 
   #stage{
-    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:15px; padding:16px 20px; text-align:center; overflow:hidden;
+    flex:1; min-height:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:clamp(8px, 1.6vh, 18px); padding:clamp(8px,1.6vh,18px) clamp(10px,2vw,22px);
+    text-align:center; overflow:hidden;
   }
+  #cards{gap:clamp(14px, 2.8vw, 30px); margin-top:clamp(10px, 2.2vh, 26px)}
+  .prizeBar{flex-wrap:wrap; justify-content:center; max-width:96vw}
   .phase-tag{
     font-size:13px; letter-spacing:.16em; color:#2a1d00; background:var(--gold);
     border:2px solid var(--ink-stroke); border-radius:99px; padding:4px 16px;
     box-shadow:0 4px 0 var(--ink-stroke); transform:rotate(-1.5deg);
   }
   .hint{font-size:13px; color:var(--ink3)}
+  /* 提示区高度固定，文案从一行变两行时不会把上面的内容顶走 */
+  #dm{
+    min-height:clamp(52px, 7.4vh, 78px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
   .big{
     font-size:clamp(23px,3.8vw,36px); color:#fff;
     -webkit-text-stroke:4px var(--ink-stroke); paint-order:stroke fill;
@@ -268,7 +287,8 @@
   /* ===== 老虎机下方的实体按钮 ===== */
   .spinHold{ display:flex; justify-content:center; animation:btnIdle 2.8s ease-in-out infinite }
   @keyframes btnIdle{0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)}}
-  .spinHold.dead{animation:none; opacity:.35; pointer-events:none; filter:grayscale(.6)}
+  .spinHold.dead{animation-play-state:paused; opacity:.35;
+                 pointer-events:none; filter:grayscale(.6)}
 
   .spinBtn{
     font-family:var(--disp); font-size:clamp(21px,2.7vw,31px);
@@ -322,7 +342,7 @@
   /* ============ 抽号：三个积木滚轮 ============ */
   #slot{ position:relative; display:flex; flex-direction:column; align-items:center }
   #digits{
-    --cell:clamp(92px, 13.5vh, 168px);
+    --cell:min(13.5vh, 22vw, 168px);
     display:flex; gap:clamp(10px,1.4vw,18px); position:relative;
   }
   .reel{
@@ -335,10 +355,18 @@
       0 calc(var(--lift) + 10px) 22px rgba(0,0,0,.5),
       inset 0 14px 20px rgba(60,40,20,.26),
       inset 0 -14px 20px rgba(60,40,20,.26);
-    transition:box-shadow .22s, transform .22s var(--squash);
+    transition:box-shadow .22s;
+  }
+  /* 定格后：中间那位提亮放大，上下两位压暗缩小，对比拉开 */
+  /* 定格只改透明度和描边，绝不动几何，避免任何位移错觉 */
+  .rcell{transition:opacity .3s, color .3s}
+  .reel.locked .rcell{opacity:.20}
+  .reel.locked .rcell.hit{
+    opacity:1;
+    -webkit-text-stroke:3px var(--gold); paint-order:stroke fill;
+    text-shadow:0 0 22px rgba(255,201,60,.8), 0 3px 0 rgba(0,0,0,.25);
   }
   .reel.locked{
-    transform:translateY(-3px);
     box-shadow:
       0 var(--lift) 0 var(--ink-stroke),
       0 0 0 4px var(--gold),
@@ -367,13 +395,14 @@
   }
   .reel::before{top:0;    background:linear-gradient(180deg,rgba(40,28,18,.30),transparent)}
   .reel::after {bottom:0; background:linear-gradient(0deg,  rgba(40,28,18,.30),transparent)}
-  @keyframes reelPop{0%{transform:scale(1)} 45%{transform:scale(1.07)} 100%{transform:scale(1)}}
-  .reel.pop{animation:reelPop .3s cubic-bezier(.3,1.5,.4,1)}
 
-  #cards{display:flex; gap:14px; justify-content:center; flex-wrap:wrap}
+  #cards{display:flex; gap:28px; justify-content:center; flex-wrap:wrap}
   /* 卡牌：奖品图占主体，其下依次是标签 / 概率 / 名称 / 说明 */
-  .card{width:clamp(172px,20.5vw,220px); height:clamp(268px,33vw,340px);
-        perspective:1000px; cursor:pointer}
+  .card{
+    --cw:min(27vw, 30vh, 330px);
+    width:var(--cw); height:calc(var(--cw) * 1.55);
+    perspective:1000px; cursor:pointer;
+  }
   /* 每张牌按稀有度取色 */
   .card{--rc:var(--r1); --rcd:var(--r1d)}
   .card[data-r="2"]{--rc:var(--r2); --rcd:var(--r2d)}
@@ -381,14 +410,21 @@
   .card[data-r="4"]{--rc:var(--r4); --rcd:var(--r4d)}
   .card[data-r="5"]{--rc:var(--r5); --rcd:var(--r5d)}
   .inner{position:relative; width:100%; height:100%; transform-style:preserve-3d;
-         transform:rotateY(180deg); transition:transform .55s cubic-bezier(.3,.9,.3,1)}
+         transform:rotateY(180deg); transition:transform .82s cubic-bezier(.3,.9,.3,1)}
   .card.flipped .inner{transform:rotateY(0deg)}
+  /* 入场：从下方带缩放飞入 */
+  .card.enter{animation:cardIn .42s var(--pop) backwards}
+  @keyframes cardIn{
+    from{opacity:0; transform:translateY(72px) scale(.7)}
+    to  {opacity:1; transform:none}
+  }
   .face{
     position:absolute; inset:0; backface-visibility:hidden;
     border:var(--stroke) solid var(--ink-stroke); border-radius:var(--r-lg);
     background:var(--panel); overflow:hidden;
     display:flex; flex-direction:column; align-items:center;
     box-shadow:
+      0 0 0 3px rgba(196,190,224,.30),          /* 灰色外描边，未选中也有轮廓 */
       0 var(--lift) 0 var(--ink-stroke),
       0 calc(var(--lift) + 5px) 0 var(--panel2),
       0 calc(var(--lift) + 9px) 0 var(--ink-stroke),
@@ -405,7 +441,7 @@
     font-family:var(--mono); font-size:64px; color:#efe6ff; opacity:.5;
     -webkit-text-stroke:3px rgba(0,0,0,.4);
   }
-  .card.sel{transform:translateY(-14px) rotate(-1.2deg); transition:transform .18s var(--squash)}
+  .card.sel{transform:translateY(-20px) rotate(-1.7deg) scale(1.04); transition:transform .18s var(--squash)}
   .card.sel .face{box-shadow:
       0 var(--lift) 0 var(--ink-stroke),
       0 calc(var(--lift) + 5px) 0 var(--panel2),
@@ -416,7 +452,7 @@
   .front .ico{
     flex:1 1 auto; width:100%; min-height:0; position:relative;
     display:flex; align-items:center; justify-content:center;
-    font-size:clamp(54px,6.8vw,78px); line-height:1;
+    font-size:calc(var(--cw) * .34); line-height:1;
     background:radial-gradient(circle at 50% 44%, rgba(255,255,255,.20), transparent 62%);
     animation:floaty 3.4s ease-in-out infinite;
   }
@@ -426,33 +462,198 @@
 
   /* 文字区 */
   .front .info{
-    width:100%; padding:0 12px 14px; display:flex; flex-direction:column;
-    align-items:center; gap:3px; flex-shrink:0;
+    width:100%; padding:0 calc(var(--cw) * .055) calc(var(--cw) * .06);
+    display:flex; flex-direction:column;
+    align-items:center; gap:calc(var(--cw) * .012); flex-shrink:0;
   }
   .front .tag{
-    font-size:12px; letter-spacing:.2em; color:#fff; margin-bottom:2px;
+    font-size:max(9px, calc(var(--cw) * .058)); letter-spacing:.14em;
+    color:#fff; margin-bottom:2px; white-space:nowrap;
     background:var(--rcd); border:2px solid var(--ink-stroke); border-radius:99px;
-    padding:2px 13px; transform:rotate(-6deg); box-shadow:0 3px 0 var(--ink-stroke);
+    padding:2px calc(var(--cw) * .055); transform:rotate(-6deg);
+    box-shadow:0 3px 0 var(--ink-stroke);
   }
   .front .p{
-    font-family:var(--mono); font-size:clamp(36px,4.8vw,48px);
+    font-family:var(--mono); font-size:calc(var(--cw) * .215);
     font-weight:800; line-height:1; letter-spacing:-.01em; color:#fff;
     -webkit-text-stroke:3px var(--ink-stroke); paint-order:stroke fill;
     text-shadow:0 4px 0 rgba(0,0,0,.4);
   }
   .front .nm{
-    font-size:17px; line-height:1.2; margin-top:4px; color:#fff;
+    font-size:max(11px, calc(var(--cw) * .082)); line-height:1.15;
+    margin-top:calc(var(--cw) * .016); color:#fff;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     -webkit-text-stroke:2.5px var(--ink-stroke); paint-order:stroke fill;
   }
-  .front .val{font-size:12px; color:var(--ink2); line-height:1.3; margin-top:1px}
+  .front .val{
+    font-size:max(9px, calc(var(--cw) * .056)); color:var(--ink2);
+    line-height:1.25; margin-top:1px; white-space:nowrap;
+  }
 
-  canvas{background:#0d0d14; border:1px solid var(--line); border-radius:8px; max-width:100%}
+
+  /* ============ 揭晓：就在选中的那张牌上开 ============ */
+  #flash{
+    position:fixed; inset:0; z-index:300; background:#fff;
+    opacity:0; pointer-events:none;
+  }
+  #flash.go{animation:flashOut .40s ease-out}
+  @keyframes flashOut{0%{opacity:0} 7%{opacity:1} 100%{opacity:0}}
+
+  #vig{
+    position:fixed; inset:0; z-index:12; pointer-events:none; opacity:0;
+    background:radial-gradient(circle at 50% 46%, transparent 26%, rgba(0,0,0,.88) 74%);
+  }
+  #vig.on{animation:vigIn var(--chargeDur,1200ms) ease-in forwards}
+  @keyframes vigIn{from{opacity:0; transform:scale(1.7)} to{opacity:1; transform:scale(1)}}
+
+  /* 落选的两张飞出画面 */
+  .card.flyL{animation:flyL .51s var(--ease) forwards}
+  .card.flyR{animation:flyR .51s var(--ease) forwards}
+  @keyframes flyL{to{transform:translateX(-190%) rotate(-22deg); opacity:0}}
+  @keyframes flyR{to{transform:translateX(190%)  rotate(22deg);  opacity:0}}
+
+  /* 选中的那张：放大 + 抖动逐渐加剧 */
+  .card.charging{
+    z-index:20; position:relative;
+    animation:chargeShake var(--chargeDur,1200ms) linear forwards;
+  }
+  @keyframes chargeShake{
+    0%  {transform:translateX(0)             scale(1)}
+    24% {transform:translateX(var(--dx,0px)) scale(1.17)}
+    100%{transform:translateX(var(--dx,0px)) scale(1.34)}
+  }
+  /* 抖动独立成一条固定频率的循环，不随蓄力时长变快变慢 */
+  .card.charging .inner{animation:jitter 120ms linear infinite}
+  @keyframes jitter{
+    0%  {transform:rotateY(0) translate(0,0)}
+    20% {transform:rotateY(0) translate(calc(var(--amp,3px) * -1), var(--amp,3px))}
+    40% {transform:rotateY(0) translate(var(--amp,3px), calc(var(--amp,3px) * -.7))}
+    60% {transform:rotateY(0) translate(calc(var(--amp,3px) * -.6), calc(var(--amp,3px) * -1))}
+    80% {transform:rotateY(0) translate(calc(var(--amp,3px) * .8), var(--amp,3px))}
+    100%{transform:rotateY(0) translate(0,0)}
+  }
+  /* ===== 蓄力时的档次差异：抖幅、辉光、光环、光芒 ===== */
+  .card[data-r="1"]{--amp:2px;   --pow:.45}
+  .card[data-r="2"]{--amp:2.5px; --pow:.8}
+  .card[data-r="3"]{--amp:3px;   --pow:1.3}
+  .card[data-r="4"]{--amp:4px;   --pow:1.9}
+  .card[data-r="5"]{--amp:5px;   --pow:2.8}
+
+  .card.charging .front{
+    box-shadow:
+      0 var(--lift) 0 var(--ink-stroke),
+      0 0 0 calc(3px + 2px * var(--pow,1)) var(--rc),
+      0 0 calc(26px * var(--pow,1)) var(--rc),
+      0 0 calc(80px * var(--pow,1)) color-mix(in srgb, var(--rc) 55%, transparent),
+      0 24px 44px rgba(0,0,0,.6);
+  }
+  /* 档次越高，牌面本身也越亮 */
+  .card.charging .front{filter:brightness(calc(1 + .12 * var(--pow,1))) saturate(calc(1 + .2 * var(--pow,1)))}
+
+  /* 脉动光环：超稀有及以上才有 */
+  .card.charging::after{
+    content:''; position:absolute; inset:-9%; border-radius:30px;
+    pointer-events:none; z-index:-1; opacity:0;
+    border:3px solid var(--rc);
+  }
+  .card[data-r="3"].charging::after,
+  .card[data-r="4"].charging::after,
+  .card[data-r="5"].charging::after{animation:auraPulse 620ms ease-out infinite}
+  @keyframes auraPulse{
+    0%  {opacity:.85; transform:scale(.92)}
+    100%{opacity:0;   transform:scale(1.22)}
+  }
+
+  /* 旋转光芒：史诗和传说专属 */
+  .card.charging::before{
+    content:''; position:absolute; inset:-34%; pointer-events:none; z-index:-2;
+    opacity:0; border-radius:50%;
+    background:conic-gradient(from 0deg,
+      color-mix(in srgb, var(--rc) 70%, transparent) 0deg 6deg, transparent 6deg 34deg,
+      color-mix(in srgb, var(--rc) 45%, transparent) 34deg 39deg, transparent 39deg 60deg);
+    -webkit-mask-image:radial-gradient(circle, transparent 26%, #000 52%, transparent 82%);
+            mask-image:radial-gradient(circle, transparent 26%, #000 52%, transparent 82%);
+  }
+  .card[data-r="4"].charging::before{opacity:.55; animation:rayspin 5s linear infinite}
+  .card[data-r="5"].charging::before{opacity:.9;  animation:rayspin 3.2s linear infinite}
+
+  /* 失败：沿裂缝断成两半 —— 冲击 → 悬停 → 自由落体 */
+  .card.shattered{
+    z-index:20;
+    filter:saturate(.28) brightness(.66);
+    transition:filter .26s ease-out;   /* 断裂瞬间色就抽干，下落阶段不再有滤镜开销 */
+  }
+  .card.shattered .back{display:none}
+  .card.shattered .inner{transform:rotateY(0deg) !important}
+
+  /* 两半共用同一条锯齿裂缝，严丝合缝 */
+  .halfL,.halfR{
+    will-change:transform;            /* 提升为独立图层，落下时不再重绘投影 */
+    backface-visibility:visible;
+    box-shadow:none;                  /* 碎片不需要积木厚度，去掉省开销 */
+  }
+  .halfL{
+    clip-path:polygon(0 0, 52% 0, 45% 17%, 55% 33%, 43% 51%, 54% 69%, 44% 85%, 51% 100%, 0 100%);
+    animation:shatterL 2s forwards;
+  }
+  .halfR{
+    clip-path:polygon(52% 0, 100% 0, 100% 100%, 51% 100%, 44% 85%, 54% 69%, 43% 51%, 55% 33%, 45% 17%);
+    animation:shatterR 2s forwards;
+  }
+  /* 只两段：爆裂→缓出是一条完整的 ease-out（末速为 0），
+     落体是 ease-in（初速为 0），在速度都为零处相接，不会顿 */
+  @keyframes shatterL{
+    0%  {transform:translate(0,0) rotate(0);
+         animation-timing-function:cubic-bezier(.03,.88,.18,1)}
+    46% {transform:translate(-70px,-19px) rotate(-12deg);
+         animation-timing-function:cubic-bezier(.5,0,1,1)}
+    100%{transform:translate(-117px,112vh) rotate(-44deg); opacity:.9}
+  }
+  @keyframes shatterR{
+    0%  {transform:translate(0,0) rotate(0);
+         animation-timing-function:cubic-bezier(.03,.88,.18,1)}
+    46% {transform:translate(72px,-16px) rotate(11deg);
+         animation-timing-function:cubic-bezier(.5,0,1,1)}
+    100%{transform:translate(126px,112vh) rotate(40deg); opacity:.9}
+  }
+  /* 断裂瞬间沿裂缝闪一下白光 */
+  .crackFlash{
+    position:absolute; inset:0; z-index:9; pointer-events:none; background:#fff;
+    clip-path:polygon(52% 0, 45% 17%, 55% 33%, 43% 51%, 54% 69%, 44% 85%, 51% 100%,
+                      55% 100%, 48% 85%, 58% 69%, 47% 51%, 59% 33%, 49% 17%, 56% 0);
+    animation:crackFlash .5s ease-out forwards;
+  }
+  @keyframes crackFlash{
+    0%{opacity:0; transform:scaleX(.4)}
+    12%{opacity:1; transform:scaleX(1)}
+    100%{opacity:0; transform:scaleX(2.6)}
+  }
+
+  /* 震屏 */
+  #game.shk{animation:shk .42s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes shk{
+    0%,100%{transform:translate(0,0)}
+    12%{transform:translate(-11px,5px)}  26%{transform:translate(10px,-6px)}
+    40%{transform:translate(-8px,4px)}   56%{transform:translate(7px,-3px)}
+    72%{transform:translate(-4px,2px)}   86%{transform:translate(3px,-1px)}
+  }
+  #game.shk-lite{animation:shkLite .3s ease-out}
+  @keyframes shkLite{
+    0%,100%{transform:translate(0,0)}
+    30%{transform:translate(-5px,2px)} 65%{transform:translate(4px,-2px)}
+  }
 
   /* ============ 中奖展示：自转奖品 + 光效 + 彩带 ============ */
   .prizeShow{
-    position:relative; width:min(300px,52vw); aspect-ratio:1;
+    position:relative; width:min(320px,54vw); aspect-ratio:1;
     display:flex; align-items:center; justify-content:center;
+    --rc:var(--gold);
+    animation:prizePop .5s var(--pop) both;
   }
+  @keyframes prizePop{from{transform:scale(.55); opacity:0} to{transform:scale(1); opacity:1}}
+  .prizeShow[data-r="1"]{--rc:var(--r1)} .prizeShow[data-r="2"]{--rc:var(--r2)}
+  .prizeShow[data-r="3"]{--rc:var(--r3)} .prizeShow[data-r="4"]{--rc:var(--r4)}
+  .prizeShow[data-r="5"]{--rc:var(--r5)}
   /* 彩带画布铺满视口，不受任何容器裁切影响 */
   #fx{
     position:fixed; inset:0; width:100vw; height:100vh;
@@ -463,8 +664,8 @@
   .rays{
     position:absolute; inset:-22%; z-index:0; opacity:.5;
     background:conic-gradient(from 0deg,
-      rgba(255,213,74,.30) 0deg 7deg, transparent 7deg 30deg,
-      rgba(255,213,74,.18) 30deg 35deg, transparent 35deg 60deg);
+      color-mix(in srgb, var(--rc) 62%, transparent) 0deg 7deg, transparent 7deg 30deg,
+      color-mix(in srgb, var(--rc) 40%, transparent) 30deg 35deg, transparent 35deg 60deg);
     -webkit-mask-image:radial-gradient(circle, #000 12%, rgba(0,0,0,.5) 42%, transparent 70%);
             mask-image:radial-gradient(circle, #000 12%, rgba(0,0,0,.5) 42%, transparent 70%);
     animation:rayspin 22s linear infinite;
@@ -472,7 +673,7 @@
   @keyframes rayspin{to{transform:rotate(360deg)}}
   .glow{
     position:absolute; inset:6%; z-index:1; border-radius:50%;
-    background:radial-gradient(circle, rgba(255,213,74,.34), transparent 62%);
+    background:radial-gradient(circle, color-mix(in srgb, var(--rc) 55%, transparent), transparent 62%);
     animation:breathe 3.2s ease-in-out infinite;
   }
   @keyframes breathe{0%,100%{opacity:.75;transform:scale(1)} 50%{opacity:1;transform:scale(1.07)}}
@@ -491,7 +692,7 @@
   .disc .fc{
     position:absolute; inset:0; border-radius:16px; overflow:hidden;
     background:linear-gradient(155deg,#2e2e40,#1b1b26);
-    border:2px solid rgba(255,213,74,.55);
+    border:3px solid var(--rc);
     box-shadow:inset 0 2px 14px rgba(255,255,255,.08);
     display:flex; align-items:center; justify-content:center;
     font-size:clamp(46px,7vw,78px); backface-visibility:hidden;
@@ -531,6 +732,30 @@
   .warn{color:var(--red)}
   .hide{display:none !important}
 
+  /* ===== 窄屏 / 竖屏 ===== */
+  @media (max-aspect-ratio: 1/1){
+    .card{--cw:min(30vw, 26vh, 260px)}
+    #digits{--cell:min(11vh, 25vw, 150px)}
+    .prizeBar{gap:10px; padding:7px 14px 7px 7px}
+    .prizeBar .pbNm{font-size:clamp(14px,4vw,20px)}
+  }
+  /* 极窄（手机竖屏） */
+  @media (max-width: 560px){
+    .card{--cw:min(30vw, 24vh, 200px)}
+    #digits{--cell:min(10vh, 26vw, 120px)}
+    .prizeBar .pbSub{display:none}
+    #foot{padding:6px 8px}
+    #foot .keys{gap:5px}
+    #foot .btn{font-size:11px; padding:6px 9px}
+    #status{font-size:11px}
+  }
+  /* 矮扁屏（投影常见的 16:9 甚至 21:9） */
+  @media (max-height: 720px){
+    .card{--cw:min(25vw, 31vh, 280px)}
+    #digits{--cell:min(14vh, 19vw, 140px)}
+    .big{font-size:clamp(19px,3vw,28px)}
+  }
+
   /* ============ 右上角设置齿轮 ============ */
   #gear{
     position:fixed; top:14px; right:16px; z-index:200;
@@ -552,6 +777,8 @@
 
 <!-- ============ 编辑器 ============ -->
 <div id="bgFx"></div>
+<div id="vig"></div>
+<div id="flash"></div>
 
 <button id="gear" title="设置（Esc）">⚙</button>
 
@@ -855,6 +1082,33 @@ function renderEditor(){
         'style="background:' + c + ';color:#fff;padding:6px 12px">' + nm + '</button>').join('') +
     '</div></div>';
 
+  // 演出预览
+  html += '<div class="sec"><h3>演出预览　<span style="color:var(--ink3);letter-spacing:0">' +
+          '点一下立刻重播，不用走流程</span></h3>' +
+    '<div class="pvGrid">' +
+      '<span class="pvLbl">流程</span>' +
+      '<button class="btn" data-act="pv" data-k="flip">翻牌</button>' +
+      '<button class="btn" data-act="pv" data-k="draw">抽号滚停</button>' +
+      '<button class="btn" data-act="pv" data-k="lose">失败碎裂</button>' +
+    '</div>' +
+    '<div class="pvGrid">' +
+      '<span class="pvLbl">选牌成功（按稀有度）</span>' +
+      [['普通',1],['稀有',2],['超稀有',3],['史诗',4],['传说',5]].map(([nm,r]) =>
+        '<button class="btn r' + r + '" data-act="pv" data-k="win" data-r="' + r + '">' +
+        nm + '</button>').join('') +
+    '</div>' +
+    '<div class="pvGrid">' +
+      '<span class="pvLbl">只看结果页</span>' +
+      [['普通',1],['稀有',2],['超稀有',3],['史诗',4],['传说',5]].map(([nm,r]) =>
+        '<button class="btn r' + r + '" data-act="pv" data-k="res" data-r="' + r + '">' +
+        nm + '</button>').join('') +
+      '<button class="btn" data-act="pv" data-k="resLose">勋章</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+      '<button class="btn" data-act="pvExit">退出预览，回到原局</button>' +
+      '<span id="pvState"></span>' +
+    '</div></div>';
+
   // 高级
   html += '<div class="sec"><h3>高级</h3>' +
     '<div class="fld" style="margin-bottom:8px"><label>风险系数 K</label>' +
@@ -968,6 +1222,8 @@ $('edBody').addEventListener('click', e => {
     cfg.tiers.splice(ti,1);
   }
   else if (a === 'pickImg'){ imgTarget = { ti, ii }; $('fileImg').click(); return; }
+  else if (a === 'pv'){ preview(b.dataset.k, parseInt(b.dataset.r, 10)); return; }
+  else if (a === 'pvExit'){ pvExit(); return; }
   else if (a === 'bgPreset'){
     cfg.theme = cfg.theme || {};
     cfg.theme.bg = b.dataset.c;
@@ -1276,7 +1532,11 @@ function screenDraw(){
   const reels = Array.from(box.querySelectorAll('.reel'));
   const strips = reels.map(r => r.querySelector('.rstrip'));
   reels.forEach(r => r.classList.remove('locked'));
-  strips.forEach(st => { st.style.transition = 'none'; st.classList.add('fast'); });
+  strips.forEach(st => {
+    st.style.transition = 'none'; st.classList.add('fast');
+    const h = st.querySelector('.rcell.hit');
+    if (h) h.classList.remove('hit');
+  });
   const dm0 = $('dm'); if (dm0) dm0.textContent = '滚动中…';
   renderStatus();
 
@@ -1291,12 +1551,12 @@ function screenDraw(){
   const spinning = [true, true, true];
   const SPEED = cell * 0.62;                          // 每帧滚动距离
 
-  // 让第 k 格停在中间：y = -(k-1)*cell
+  // 让第 k 格停在中间：y = -(k-1)*cell，居中的那一格下标就是 k
   function targetY(cy, digit, minTurns){
     const curK = (-cy / cell) + 1;
     let k = Math.ceil(curK) + minTurns * 10;
     k += ((digit - (k % 10)) + 10) % 10;
-    return -(k - 1) * cell;
+    return { y: -(k - 1) * cell, k: k };
   }
 
   let spinRaf = 0;
@@ -1319,22 +1579,21 @@ function screenDraw(){
   function stopReel(i){
     spinning[i] = false;
     const st = strips[i];
-    const ty = targetY(ys[i], +str[i], 2);
+    const tgt = targetY(ys[i], +str[i], 2);
     st.classList.remove('fast');
-    st.style.transition = 'transform ' + brake + 'ms cubic-bezier(.13,.72,.18,1.02)';
-    st.style.transform = 'translateY(' + ty + 'px)';
-    ys[i] = ty;
+    st.style.transition = 'transform ' + brake + 'ms cubic-bezier(.16,.86,.27,1)';
+    st.style.transform = 'translateY(' + tgt.y + 'px)';
+    ys[i] = tgt.y;
     const done = setTimeout(() => {
-      reels[i].classList.add('locked', 'pop');
-      setTimeout(() => reels[i].classList.remove('pop'), 320);
+      reels[i].classList.add('locked');
+      const hit = st.children[tgt.k];
+      if (hit) hit.classList.add('hit');
       const dm = $('dm');
       if (dm) dm.textContent = msgs[i];
       if (i === 2){
         mode = 'drawn';
         if (dm) dm.innerHTML =
-          '请 <b style="color:var(--gold)">' + str + '</b> 号的朋友上台' +
-          '<div class="hint" style="margin-top:10px">找到人按 <kbd>空格</kbd>　·　' +
-          '不在场按 <kbd>D</kbd> 重抽（此号作废）</div>';
+          '请 <b style="color:var(--gold)">' + str + '</b> 号的朋友上台';
       }
     }, brake);
     drawTimers.push(() => clearTimeout(done));
@@ -1405,12 +1664,23 @@ function renderChoice(climbed, customSub){
     '</div><div class="sub" id="cm">翻牌中…</div>';
   renderShelf(); renderStatus();
 
+  // 入场 → 翻转，全程控制在 1.8s 内
   const els = Array.from($stage.querySelectorAll('.card'));
-  els.forEach((el,i) => setTimeout(() => el.classList.add('flipped'), 350 + i*520));
+  els.forEach((el, i) => {
+    el.style.animationDelay = (i * 90) + 'ms';
+    el.classList.add('enter');
+    const off = setTimeout(() => {
+      el.classList.remove('enter');
+      el.style.animationDelay = '';
+    }, i * 90 + 440);
+    drawTimers.push(() => clearTimeout(off));
+  });
+  const flipAt = i => 620 + i * 320;
+  els.forEach((el, i) => setTimeout(() => el.classList.add('flipped'), flipAt(i)));
   setTimeout(() => {
     const m = $('cm');
     if (m) m.textContent = customSub || '要这件，还是搏更大的？';
-  }, 350 + els.length*520 + 200);
+  }, flipAt(els.length - 1) + 840);
 }
 
 function moveSel(d){
@@ -1425,7 +1695,7 @@ function confirmCard(){
   // 100% 的牌没有成败可言，跳过开箱演出，直接进中奖展示
   if (c.kind === 'take') return give({ tier:c.tier });
   const win = Math.random() < c.p;
-  playAnim(cur.sel, win, () => {
+  revealOnCard(cur.sel, win, c.tier, () => {
     if (!win) return give({ medal:true });
     if (c.tier === GRAND) return give({ tier:GRAND });
     cur.tier = c.tier;
@@ -1433,59 +1703,97 @@ function confirmCard(){
   });
 }
 
-/* ---------- 演出 ---------- */
-function playAnim(idx, win, done){
-  mode = 'anim';
-  const W = Math.max(420, Math.min(880, window.innerWidth-60)), H = 220;
-  $stage.innerHTML = '<canvas id="cv" width="'+W+'" height="'+H+'"></canvas>' +
-                     '<div class="sub" id="am">冲刺中…</div>';
-  const g = $('cv').getContext('2d'), am = $('am');
-  const n = cur.cards.length;
-  const cx = i => n>1 ? W*0.32 + i*(W*0.40/(n-1)) : W*0.5;
-  const tx = cx(idx), gy = H-42;
-  const slow = phase === 'finale' ? 1.7 : 1;
-  let t=0, ph='run', hx=26, hy=gy-34, vy=0, ps=[], said=false, e0=0;
+/* ---------- 揭晓：就在选中的那张牌上开 ---------- */
+// 按稀有度分级：越大的奖，蓄力越久、爆发越猛
+const REVEAL = {
+  // 时长和抖动频率各档基本一致，差异全靠卡牌外观（辉光/光环/光芒/抖幅）
+  0: { charge: 600, flash:false, shake:null,       conf:0   },   // 失败
+  1: { charge: 520, flash:true,  shake:null,       conf:.7  },
+  2: { charge: 580, flash:true,  shake:'shk-lite', conf:1.0 },
+  3: { charge: 640, flash:true,  shake:'shk-lite', conf:1.4 },
+  4: { charge: 700, flash:true,  shake:'shk',      conf:1.9 },
+  5: { charge: 780, flash:true,  shake:'shk',      conf:2.8 },   // 大奖
+};
+let revealConf = 1;
 
-  function fr(){
-    t += 1/60;
-    g.fillStyle='#0d0d14'; g.fillRect(0,0,W,H);
-    g.fillStyle='#2a2a38'; g.fillRect(0,gy,W,4);
-    for (let i=0;i<n;i++){
-      const x=cx(i), isT=(i===idx), op=isT&&ph==='open';
-      g.fillStyle = isT ? (op ? (win?'#ffd54a':'#4a4a58') : '#8b5a2b') : '#3a3040';
-      g.fillRect(x-22, gy-30, 44, 30);
-      g.fillStyle = op ? (win?'#fff3c4':'#2a2a38') : '#5a4030';
-      g.fillRect(x-22, gy-30, 44, op?6:10);
-    }
-    if (ph==='run'){
-      hx += (tx-56-hx)*(0.085/slow);
-      hy = gy-34 - Math.abs(Math.sin(t*14))*5;
-      if (tx-56-hx < 3){ ph='jump'; vy=-360; am.textContent='起跳！'; }
-    } else if (ph==='jump'){
-      vy += 1400/60; hy += vy/60; hx += 1.4;
-      if (hy >= gy-34){
-        hy=gy-34; ph='open'; e0=t; am.textContent='开箱…';
-        for (let i=0;i<48;i++)
-          ps.push({x:tx,y:gy-30,vx:(Math.random()-.5)*260,vy:-Math.random()*300-60,life:1});
+function revealOnCard(idx, win, tier, done){
+  mode = 'anim';
+  const rarity = win ? Math.min(5, tier + 1) : 0;
+  const T = REVEAL[rarity];
+  revealConf = T.conf;
+
+  const cards = Array.from($stage.querySelectorAll('.card'));
+  const card = cards[idx];
+  if (!card) return done();
+  if (!win) card.setAttribute('data-r', '1');   // 失败一律用最朴素的外观
+
+  // 落选的牌飞出去
+  cards.forEach((el, i) => {
+    if (i !== idx) el.classList.add(i < idx ? 'flyL' : 'flyR');
+  });
+
+  // 蓄力：放大 + 抖动加剧 + 四周压暗
+  document.documentElement.style.setProperty('--chargeDur', T.charge + 'ms');
+  card.classList.remove('sel');
+  // 不管选的是左中右哪一张，都滑到画面正中再开
+  const r = card.getBoundingClientRect();
+  const dx = Math.round(window.innerWidth / 2 - (r.left + r.width / 2));
+  card.style.setProperty('--dx', dx + 'px');
+  card.classList.add('charging');
+  const vig = $('vig');
+  if (vig){ vig.classList.remove('on'); void vig.offsetWidth; vig.classList.add('on'); }
+
+  const sub = $('cm');
+  if (sub) sub.textContent = win ? '……' : '……';
+
+  const t1 = setTimeout(() => {
+    if (win){
+      if (T.flash){
+        const f = $('flash');
+        f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
       }
-    } else hy = gy-34 - Math.abs(Math.sin(t*8))*3;
-    g.fillStyle='#2d6cdf'; g.fillRect(hx,hy,26,34);
-    g.fillStyle='#fff';    g.fillRect(hx+15,hy+9,6,6);
-    for (const p of ps){
-      p.vy += 700/60; p.x += p.vx/60; p.y += p.vy/60; p.life -= 1/60;
-      if (p.life>0){
-        g.globalAlpha = Math.max(0,p.life);
-        g.fillStyle = win ? '#ffd54a' : '#6a6679';
-        g.fillRect(p.x,p.y,5,5); g.globalAlpha=1;
+      if (T.shake){
+        const g = $('game');
+        g.classList.remove('shk','shk-lite'); void g.offsetWidth; g.classList.add(T.shake);
+        setTimeout(() => g.classList.remove('shk','shk-lite'), 460);
       }
+      // 趁白闪最亮的时候换画面，看不出切换
+      const t2 = setTimeout(() => { clearVig(); done(); }, T.flash ? 120 : 0);
+      drawTimers.push(() => clearTimeout(t2));
+    } else {
+      shatterCard(card);
+      const g = $('game');
+      g.classList.remove('shk','shk-lite'); void g.offsetWidth; g.classList.add('shk-lite');
+      setTimeout(() => g.classList.remove('shk-lite'), 340);
+      const t2 = setTimeout(() => { clearVig(); done(); }, 1700);
+      drawTimers.push(() => clearTimeout(t2));
     }
-    if (ph==='open'){
-      if (!said && t-e0 > 0.5*slow){ said=true; am.textContent = win ? '成功！' : '失败…'; }
-      if (t-e0 > 1.6*slow){ done(); return; }
-    }
-    raf = requestAnimationFrame(fr);
-  }
-  raf = requestAnimationFrame(fr);
+  }, T.charge);
+  drawTimers.push(() => clearTimeout(t1));
+}
+
+// 把牌复制成两份，各自裁掉一半，就成了沿裂缝断开的两块
+function shatterCard(card){
+  const inner = card.querySelector('.inner');
+  const front = inner && inner.querySelector('.front');
+  if (!front) return;
+  const right = front.cloneNode(true);
+  front.classList.add('halfL');
+  right.classList.add('halfR');
+  inner.appendChild(right);
+  const fl = document.createElement('div');
+  fl.className = 'crackFlash';
+  inner.appendChild(fl);
+  // 保持蓄力结束时的位置和大小，不要跳回原位
+  card.style.animation = 'none';
+  card.style.transform = 'translateX(var(--dx,0px)) scale(1.34)';
+  card.classList.remove('charging');
+  card.classList.add('shattered');
+}
+
+function clearVig(){
+  const v = $('vig');
+  if (v) v.classList.remove('on');
 }
 
 /* ---------- 发奖 ---------- */
@@ -1512,7 +1820,8 @@ function give(res){
   $stage.innerHTML =
     '<div class="phase-tag">' + cur.tag + '</div>' +
     '<div class="hint">' + pad(cur.num) + ' 号</div>' +
-    '<div class="prizeShow' + (lost ? ' lost' : '') + '">' +
+    '<div class="prizeShow' + (lost ? ' lost' : '') + '" data-r="' +
+      (lost ? 0 : Math.min(5, res.tier + 1)) + '">' +
       '<div class="rays"></div><div class="glow"></div>' +
       '<div class="spinWrap"><div class="disc">' +
         '<div class="lay" style="transform:translateZ(-7px)"></div>' +
@@ -1530,7 +1839,7 @@ function give(res){
     (note ? '<div class="hint">' + note + '</div>' : '') +
     '<div class="hint">按 <kbd>空格</kbd> 继续</div>';
 
-  if (!lost) startConfetti($stage.querySelector('.spinWrap'), isGrand ? 2.2 : 1);
+  if (!lost) startConfetti($stage.querySelector('.spinWrap'), revealConf || 1);
   renderShelf(); renderStatus();
   mode = 'result';
 }
@@ -1538,6 +1847,7 @@ function give(res){
 /* ---------- 彩带 ---------- */
 let raf2 = 0;
 function stopFx(){
+  clearVig();
   cancelAnimationFrame(raf2); raf2 = 0;
   const cv = document.getElementById('fx');
   if (cv && cv.width) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
@@ -1688,6 +1998,90 @@ function screenSweep(){
   })();
 }
 
+/* ================= 演出预览台 =================
+   预览前把整局状态快照下来，退出时原样还原，不会弄乱正在进行的场次 */
+let pvSnap = null;
+
+function pvEnter(){
+  if (!pvSnap){
+    pvSnap = {
+      pools: pools.map(a => a.slice()), drawn: new Set(drawnNums),
+      prizeCount, medals, phase, failStreak, forceGive, grandGiven,
+      cur: cur ? Object.assign({}, cur) : null,
+    };
+  }
+  stopFx(); clearDrawTimers();
+  // 预览期间奖池填满，任意档位都能演
+  pools = T.map(t => {
+    const a = []; t.items.forEach(it => { for (let i = 0; i < (+it.count || 0); i++) a.push(it); });
+    return a;
+  });
+  const st = $('pvState');
+  if (st) st.textContent = '● 预览中';
+}
+
+function pvExit(){
+  if (!pvSnap) return;
+  const p = pvSnap; pvSnap = null;
+  pools = p.pools; drawnNums = p.drawn; prizeCount = p.prizeCount; medals = p.medals;
+  phase = p.phase; failStreak = p.failStreak; forceGive = p.forceGive;
+  grandGiven = p.grandGiven; cur = p.cur;
+  stopFx(); clearDrawTimers();
+  const st = $('pvState');
+  if (st) st.textContent = '';
+  nextStep();
+}
+
+// 摆一个假的选牌局面：稳牌 + 目标档位的风险牌
+function pvCards(targetTier, instant){
+  const safe = Math.max(0, Math.min(GRAND - 1, targetTier - 1));
+  cur = { tier:safe, baseTier:safe, tag:'预览', num:88, round:1, sel:0 };
+  cur.cards = [{ kind:'take', tier:safe, p:1 },
+               { kind:'risk', tier:targetTier, p:pRisk(safe, targetTier) }];
+  if (targetTier + 1 <= GRAND)
+    cur.cards.push({ kind:'risk', tier:Math.min(GRAND, targetTier + 1),
+                     p:pRisk(safe, Math.min(GRAND, targetTier + 1)) });
+  cur.sel = 1;
+  renderChoice(false, '预览');
+  if (instant){
+    $stage.querySelectorAll('.card').forEach(el => el.classList.add('flipped'));
+  }
+}
+
+function preview(kind, rarity){
+  pvEnter();
+  const r = Math.max(1, Math.min(5, rarity || 3));
+  const tier = Math.min(GRAND, r - 1);
+
+  if (kind === 'flip'){ pvCards(3, false); return; }
+
+  if (kind === 'draw'){
+    const t = lowestTier();
+    screenPrize(t < 0 ? 0 : t, '预览', '预览抽号');
+    const h = setTimeout(() => { pressSpin(); setTimeout(releaseSpin, 140); }, 320);
+    drawTimers.push(() => clearTimeout(h));
+    return;
+  }
+
+  if (kind === 'win' || kind === 'lose'){
+    const tg = kind === 'win' ? tier : 3;
+    pvCards(tg, true);
+    const h = setTimeout(() => {
+      revealOnCard(cur.sel, kind === 'win', tg,
+        () => give(kind === 'win' ? { tier:tg } : { medal:true }));
+    }, 300);
+    drawTimers.push(() => clearTimeout(h));
+    return;
+  }
+
+  if (kind === 'res' || kind === 'resLose'){
+    const lose = kind === 'resLose';
+    cur = { tier:tier, baseTier:tier, tag:'预览', num:88 };
+    revealConf = lose ? 0 : REVEAL[r].conf;
+    give(lose ? { medal:true } : { tier:tier });
+  }
+}
+
 /* ================= 输入 ================= */
 function act(name){
   if (name === 'restart'){ if (confirm('重开全场？当前进度会清空。')) startGame(); return; }
@@ -1750,7 +2144,7 @@ let lastTap = 0;
 function onTap(e){
   if ($('game').classList.contains('hide')) return;
   const t = e.target;
-  if (t && t.closest && t.closest('#foot')) return;
+  if (t && t.closest && (t.closest('#foot') || t.closest('#editor') || t.closest('#gear'))) return;
   const now = Date.now();
   if (now - lastTap < 400) return;
   lastTap = now;
