@@ -20,13 +20,16 @@
 
   :root{
     /* ===== 底色：改 --bg 一个值，其余自动跟着走 ===== */
+    /* 这里是默认底色下的派生值，换底色时由 applyTheme 重算覆盖。
+       不用 CSS 的 color mix 函数，是因为旧安卓 WebView 不认，
+       一个值解析失败会连累整套配色。 */
     --bg:#171425;
-    --panel:color-mix(in srgb, var(--bg) 92%, #ffffff 8%);
-    --panel2:color-mix(in srgb, var(--bg) 86%, #ffffff 14%);
-    --line:color-mix(in srgb, var(--bg) 76%, #ffffff 24%);
+    --panel:#2a2736;
+    --panel2:#373544;
+    --line:#4f4c59;
     --ink:#fdfbff;
-    --ink2:color-mix(in srgb, var(--bg) 22%, #ffffff 78%);
-    --ink3:color-mix(in srgb, var(--bg) 46%, #ffffff 54%);
+    --ink2:#cccbcf;
+    --ink3:#94939b;
 
     /* ===== 稀有度（档位从低到高） ===== */
     --r1:#8c94b8; --r1d:#5a6088;   /* 普通  灰蓝 */
@@ -34,6 +37,9 @@
     --r3:#3d9bff; --r3d:#215fb0;   /* 超稀有 蓝  */
     --r4:#b25cff; --r4d:#6d2fb0;   /* 史诗  紫   */
     --r5:#ffb020; --r5d:#c46a00;   /* 传说  金   */
+    /* 同色的 rgb 分量，给需要透明度的光效用（rgba 到处都支持） */
+    --r1rgb:140,148,184; --r2rgb:77,196,92;  --r3rgb:61,155,255;
+    --r4rgb:178,92,255;  --r5rgb:255,176,32;
 
     --gold:#ffc93c; --red:#ff5b4a; --green:#4dc45c;
 
@@ -48,7 +54,9 @@
     --squash:cubic-bezier(.3,1.9,.5,1);    /* 更夸张的弹 */
     --ease:cubic-bezier(.3,.9,.3,1);
 
-    --mono:'Baloo2',ui-monospace,Consolas,monospace;
+    /* Baloo2 只有拉丁字形，中文必须显式给回退，否则安卓落到细体 */
+    --mono:'Baloo2','NotoBlack',ui-monospace,Consolas,
+           -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
     --disp:'Baloo2','NotoBlack',-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
   }
 
@@ -77,7 +85,7 @@
      以后想换成自定义图片，把 background-image 换成 mask-image 即可 */
   #bgFx{
     position:fixed; inset:-10%; z-index:0; pointer-events:none;
-    --dot:color-mix(in srgb, var(--bg) 26%, #ffffff 74%);
+    --dot:#c3c2c6;                    /* 由 applyTheme() 跟着底色重算 */
     --dotSize:13px;                 /* 点直径 */
     --dotGap:104px;                 /* 网格间距 */
     background-image:radial-gradient(circle,
@@ -396,7 +404,7 @@
   .reel::before{top:0;    background:linear-gradient(180deg,rgba(40,28,18,.30),transparent)}
   .reel::after {bottom:0; background:linear-gradient(0deg,  rgba(40,28,18,.30),transparent)}
 
-  #cards{display:flex; gap:28px; justify-content:center; flex-wrap:wrap}
+  #cards{display:flex; justify-content:center; flex-wrap:wrap}   /* gap 见上方响应式 */
   /* 卡牌：奖品图占主体，其下依次是标签 / 概率 / 名称 / 说明 */
   .card{
     --cw:min(27vw, 30vh, 330px);
@@ -404,11 +412,11 @@
     perspective:1000px; cursor:pointer;
   }
   /* 每张牌按稀有度取色 */
-  .card{--rc:var(--r1); --rcd:var(--r1d)}
-  .card[data-r="2"]{--rc:var(--r2); --rcd:var(--r2d)}
-  .card[data-r="3"]{--rc:var(--r3); --rcd:var(--r3d)}
-  .card[data-r="4"]{--rc:var(--r4); --rcd:var(--r4d)}
-  .card[data-r="5"]{--rc:var(--r5); --rcd:var(--r5d)}
+  .card{--rc:var(--r1); --rcd:var(--r1d); --rcrgb:var(--r1rgb)}
+  .card[data-r="2"]{--rc:var(--r2); --rcd:var(--r2d); --rcrgb:var(--r2rgb)}
+  .card[data-r="3"]{--rc:var(--r3); --rcd:var(--r3d); --rcrgb:var(--r3rgb)}
+  .card[data-r="4"]{--rc:var(--r4); --rcd:var(--r4d); --rcrgb:var(--r4rgb)}
+  .card[data-r="5"]{--rc:var(--r5); --rcd:var(--r5d); --rcrgb:var(--r5rgb)}
   .inner{position:relative; width:100%; height:100%; transform-style:preserve-3d;
          transform:rotateY(180deg); transition:transform .82s cubic-bezier(.3,.9,.3,1)}
   .card.flipped .inner{transform:rotateY(0deg)}
@@ -485,9 +493,11 @@
     max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     -webkit-text-stroke:2.5px var(--ink-stroke); paint-order:stroke fill;
   }
+  /* 说明允许折成两行：.ico 是 flex:1，多出的高度从图标区借，卡牌总高不变 */
   .front .val{
     font-size:max(9px, calc(var(--cw) * .056)); color:var(--ink2);
-    line-height:1.25; margin-top:1px; white-space:nowrap;
+    line-height:1.22; margin-top:1px; max-width:100%;
+    word-break:break-word;
   }
 
 
@@ -544,7 +554,7 @@
       0 var(--lift) 0 var(--ink-stroke),
       0 0 0 calc(3px + 2px * var(--pow,1)) var(--rc),
       0 0 calc(26px * var(--pow,1)) var(--rc),
-      0 0 calc(80px * var(--pow,1)) color-mix(in srgb, var(--rc) 55%, transparent),
+      0 0 calc(80px * var(--pow,1)) rgba(var(--rcrgb), .55),
       0 24px 44px rgba(0,0,0,.6);
   }
   /* 档次越高，牌面本身也越亮 */
@@ -569,8 +579,8 @@
     content:''; position:absolute; inset:-34%; pointer-events:none; z-index:-2;
     opacity:0; border-radius:50%;
     background:conic-gradient(from 0deg,
-      color-mix(in srgb, var(--rc) 70%, transparent) 0deg 6deg, transparent 6deg 34deg,
-      color-mix(in srgb, var(--rc) 45%, transparent) 34deg 39deg, transparent 39deg 60deg);
+      rgba(var(--rcrgb), .70) 0deg 6deg, transparent 6deg 34deg,
+      rgba(var(--rcrgb), .45) 34deg 39deg, transparent 39deg 60deg);
     -webkit-mask-image:radial-gradient(circle, transparent 26%, #000 52%, transparent 82%);
             mask-image:radial-gradient(circle, transparent 26%, #000 52%, transparent 82%);
   }
@@ -664,8 +674,8 @@
   .rays{
     position:absolute; inset:-22%; z-index:0; opacity:.5;
     background:conic-gradient(from 0deg,
-      color-mix(in srgb, var(--rc) 62%, transparent) 0deg 7deg, transparent 7deg 30deg,
-      color-mix(in srgb, var(--rc) 40%, transparent) 30deg 35deg, transparent 35deg 60deg);
+      rgba(var(--rcrgb), .62) 0deg 7deg, transparent 7deg 30deg,
+      rgba(var(--rcrgb), .40) 30deg 35deg, transparent 35deg 60deg);
     -webkit-mask-image:radial-gradient(circle, #000 12%, rgba(0,0,0,.5) 42%, transparent 70%);
             mask-image:radial-gradient(circle, #000 12%, rgba(0,0,0,.5) 42%, transparent 70%);
     animation:rayspin 22s linear infinite;
@@ -673,7 +683,7 @@
   @keyframes rayspin{to{transform:rotate(360deg)}}
   .glow{
     position:absolute; inset:6%; z-index:1; border-radius:50%;
-    background:radial-gradient(circle, color-mix(in srgb, var(--rc) 55%, transparent), transparent 62%);
+    background:radial-gradient(circle, rgba(var(--rcrgb), .55), transparent 62%);
     animation:breathe 3.2s ease-in-out infinite;
   }
   @keyframes breathe{0%,100%{opacity:.75;transform:scale(1)} 50%{opacity:1;transform:scale(1.07)}}
@@ -725,6 +735,7 @@
     font-size:12px; color:var(--ink3); flex-shrink:0; flex-wrap:wrap;
   }
   #foot .btn{position:relative; z-index:101}
+  #foot .btn kbd{margin-left:.7em}   /* 间距归 kbd，隐藏它时不留空白 */
   #stage{position:relative; z-index:1}
   /* 光效层不拦点击 */
   .prizeShow,.rays,.glow,.spinWrap,.disc{pointer-events:none}
@@ -741,7 +752,8 @@
   }
   /* 极窄（手机竖屏） */
   @media (max-width: 560px){
-    .card{--cw:min(30vw, 24vh, 200px)}
+    .card{--cw:min(30vw, 26vh, 200px)}
+    #cards{gap:clamp(6px, 2vw, 12px)}
     #digits{--cell:min(10vh, 26vw, 120px)}
     .prizeBar .pbSub{display:none}
     #foot{padding:6px 8px}
@@ -754,6 +766,28 @@
     .card{--cw:min(25vw, 31vh, 280px)}
     #digits{--cell:min(14vh, 19vw, 140px)}
     .big{font-size:clamp(19px,3vw,28px)}
+  }
+
+  /* ===== 触屏设备：没有键盘，快捷键徽章纯占地方 ===== */
+  @media (hover: none){
+    #foot kbd{display:none}
+    #foot .btn{white-space:nowrap}
+  }
+  /* ===== 手机横屏：底栏收成不换行的一条，把画面还给舞台 ===== */
+  @media (max-height: 520px){
+    #foot{
+      flex-wrap:nowrap; align-items:center; gap:8px;
+      padding:5px 10px; font-size:11px;
+    }
+    #foot .keys{
+      flex-wrap:nowrap; gap:6px; min-width:0;
+      overflow-x:auto; -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    #foot .keys::-webkit-scrollbar{display:none}
+    #foot .btn{font-size:11px; padding:5px 9px; flex-shrink:0}
+    /* status 是纯文本块，靠 text-align 右对齐，不是 flex */
+    #status{font-size:10px; line-height:1.3; text-align:right; max-width:46%}
   }
 
   /* ============ 右上角设置齿轮 ============ */
@@ -803,11 +837,11 @@
   <canvas id="fx"></canvas>
   <div id="foot">
     <div class="keys">
-      <button class="btn main" data-act="advance">继续 / 确认　<kbd>空格</kbd></button>
-      <button class="btn" data-act="redraw">重抽本轮　<kbd>D</kbd></button>
-      <button class="btn" data-act="grand">进终局　<kbd>G</kbd></button>
-      <button class="btn" data-act="force">强发本轮　<kbd>F</kbd></button>
-      <button class="btn" data-act="restart">重开全场　<kbd>R</kbd></button>
+      <button class="btn main" data-act="advance">继续 / 确认<kbd>空格</kbd></button>
+      <button class="btn" data-act="redraw">重抽本轮<kbd>D</kbd></button>
+      <button class="btn" data-act="grand">进终局<kbd>G</kbd></button>
+      <button class="btn" data-act="force">强发本轮<kbd>F</kbd></button>
+      <button class="btn" data-act="restart">重开全场<kbd>R</kbd></button>
     </div>
     <div id="status"></div>
   </div>
@@ -869,11 +903,34 @@ const BG_PRESETS = [
   ['深紫夜', '#171425'], ['午夜蓝', '#101a2e'], ['墨绿',   '#0f1f1a'],
   ['暗酒红', '#22111a'], ['炭黑',   '#15161a'], ['深靛',   '#141033'],
 ];
+/* 底色占 w、其余补白，返回 #rrggbb。旧 WebView 没有 CSS color mix 函数，只能自己算 */
+function mixWhite(hex, w){
+  const h = String(hex || '').replace('#', '').trim();
+  const n = h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(n)) return null;
+  let out = '#';
+  for (let i = 0; i < 3; i++){
+    const v = parseInt(n.substr(i * 2, 2), 16);
+    out += ('0' + Math.round(v * w + 255 * (1 - w)).toString(16)).slice(-2);
+  }
+  return out;
+}
+/* 派生色的配比，和原先 color-mix 的写法一一对应 */
+const DERIVED = { '--panel':.92, '--panel2':.86, '--line':.76, '--ink2':.22, '--ink3':.46 };
+
 function applyTheme(){
   const t = cfg.theme || {};
-  document.documentElement.style.setProperty('--bg', t.bg || DEFAULT_CFG.theme.bg);
+  const bg = t.bg || DEFAULT_CFG.theme.bg;
+  const root = document.documentElement.style;
+  root.setProperty('--bg', bg);
+  for (const k in DERIVED){
+    const c = mixWhite(bg, DERIVED[k]);
+    if (c) root.setProperty(k, c);
+  }
   const fx = document.getElementById('bgFx');
   if (!fx) return;
+  const dot = mixWhite(bg, .26);
+  if (dot) fx.style.setProperty('--dot', dot);
   const D = DEFAULT_CFG.theme;
   const v = (t.pattern === undefined ? D.pattern : t.pattern);
   fx.style.opacity = (Math.max(0, Math.min(40, v)) / 100).toFixed(3);
