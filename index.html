@@ -60,11 +60,30 @@
     --disp:'Baloo2','NotoBlack',-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
   }
 
-  /* 描边字：荒野乱斗的灵魂之一 */
+  /* ===== 描边字：荒野乱斗的灵魂之一 =====
+     不用 -webkit-text-stroke + paint-order：后者在 Chrome/WebView 123
+     以前对 HTML 文字无效，描边会盖住填充，小字会被糊成一团墨。
+     改用 text-shadow 在圆周上取 12 个点模拟描边，各版本表现一致。
+     用法：元素上设 --ow（外扩半径）和 --oc（描边色），再 text-shadow:var(--outline)
+     需要额外投影时写成 text-shadow:var(--outline), 0 4px 0 ... */
+  :root{
+    --outline:
+      var(--ow) 0 0 var(--oc),
+      calc(var(--ow) *  .866) calc(var(--ow) *  .5)   0 var(--oc),
+      calc(var(--ow) *  .5)   calc(var(--ow) *  .866) 0 var(--oc),
+      0 var(--ow) 0 var(--oc),
+      calc(var(--ow) * -.5)   calc(var(--ow) *  .866) 0 var(--oc),
+      calc(var(--ow) * -.866) calc(var(--ow) *  .5)   0 var(--oc),
+      calc(var(--ow) * -1) 0 0 var(--oc),
+      calc(var(--ow) * -.866) calc(var(--ow) * -.5)   0 var(--oc),
+      calc(var(--ow) * -.5)   calc(var(--ow) * -.866) 0 var(--oc),
+      0 calc(var(--ow) * -1) 0 var(--oc),
+      calc(var(--ow) *  .5)   calc(var(--ow) * -.866) 0 var(--oc),
+      calc(var(--ow) *  .866) calc(var(--ow) * -.5)   0 var(--oc);
+  }
   .stroked{
-    -webkit-text-stroke:var(--stroke) var(--ink-stroke);
-    paint-order:stroke fill;
-    text-shadow:0 4px 0 rgba(0,0,0,.45);
+    --ow:calc(var(--stroke) / 2); --oc:var(--ink-stroke);
+    text-shadow:var(--outline), 0 4px 0 rgba(0,0,0,.45);
   }
   /* 积木块：底部一层深色侧面 */
   .brick{
@@ -268,14 +287,17 @@
   }
   .hint{font-size:13px; color:var(--ink3)}
   /* 提示区高度固定，文案从一行变两行时不会把上面的内容顶走 */
+  /* 高度固定，避免文案换行时把上面的内容顶走。
+     必须是 block：flex 会把「请」「081」「号的朋友上台」拆成三个 flex item，各占一行 */
   #dm{
     min-height:clamp(52px, 7.4vh, 78px);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    display:block; text-align:center;
+    padding-top:clamp(6px, 1.2vh, 14px);
   }
   .big{
     font-size:clamp(23px,3.8vw,36px); color:#fff;
-    -webkit-text-stroke:4px var(--ink-stroke); paint-order:stroke fill;
-    text-shadow:0 5px 0 rgba(0,0,0,.4);
+    --ow:2px; --oc:var(--ink-stroke);
+    text-shadow:var(--outline), 0 5px 0 rgba(0,0,0,.4);
     animation:popIn .42s var(--pop) both;
   }
   @keyframes popIn{from{transform:scale(.7); opacity:0} to{transform:scale(1); opacity:1}}
@@ -305,8 +327,8 @@
     border:var(--stroke) solid var(--ink-stroke); border-radius:var(--r-lg);
     box-shadow:0 10px 0 #6d2c1e, 0 18px 26px rgba(0,0,0,.5),
                inset 0 3px 0 rgba(255,255,255,.35);
-    -webkit-text-stroke:3px var(--ink-stroke); paint-order:stroke fill;
-    text-shadow:0 3px 0 rgba(0,0,0,.35);
+    --ow:1.5px; --oc:var(--ink-stroke);
+    text-shadow:var(--outline), 0 3px 0 rgba(0,0,0,.35);
     cursor:pointer; user-select:none; -webkit-user-select:none;
     transition:transform .07s ease-out, box-shadow .07s ease-out, filter .07s;
   }
@@ -371,8 +393,8 @@
   .reel.locked .rcell{opacity:.20}
   .reel.locked .rcell.hit{
     opacity:1;
-    -webkit-text-stroke:3px var(--gold); paint-order:stroke fill;
-    text-shadow:0 0 22px rgba(255,201,60,.8), 0 3px 0 rgba(0,0,0,.25);
+    --ow:1.5px; --oc:var(--gold);
+    text-shadow:var(--outline), 0 0 22px rgba(255,201,60,.8), 0 3px 0 rgba(0,0,0,.25);
   }
   .reel.locked{
     box-shadow:
@@ -447,7 +469,7 @@
   }
   .back .mark{
     font-family:var(--mono); font-size:64px; color:#efe6ff; opacity:.5;
-    -webkit-text-stroke:3px rgba(0,0,0,.4);
+    --ow:1.5px; --oc:rgba(0,0,0,.4); text-shadow:var(--outline);
   }
   .card.sel{transform:translateY(-20px) rotate(-1.7deg) scale(1.04); transition:transform .18s var(--squash)}
   .card.sel .face{box-shadow:
@@ -484,14 +506,14 @@
   .front .p{
     font-family:var(--mono); font-size:calc(var(--cw) * .215);
     font-weight:800; line-height:1; letter-spacing:-.01em; color:#fff;
-    -webkit-text-stroke:3px var(--ink-stroke); paint-order:stroke fill;
-    text-shadow:0 4px 0 rgba(0,0,0,.4);
+    --ow:1.5px; --oc:var(--ink-stroke);
+    text-shadow:var(--outline), 0 4px 0 rgba(0,0,0,.4);
   }
   .front .nm{
     font-size:max(11px, calc(var(--cw) * .082)); line-height:1.15;
     margin-top:calc(var(--cw) * .016); color:#fff;
     max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    -webkit-text-stroke:2.5px var(--ink-stroke); paint-order:stroke fill;
+    --ow:1.25px; --oc:var(--ink-stroke); text-shadow:var(--outline);
   }
   /* 说明允许折成两行：.ico 是 flex:1，多出的高度从图标区借，卡牌总高不变 */
   .front .val{
@@ -773,6 +795,35 @@
     #foot kbd{display:none}
     #foot .btn{white-space:nowrap}
   }
+  /* ===== 手机横屏：舞台整体压缩，390px 高度放得下 ===== */
+  @media (max-height: 520px){
+    #stage{gap:clamp(2px, .7vh, 7px); padding:3px 10px}
+    .phase-tag{font-size:11px; padding:3px 12px}
+    /* 奖品条压扁：图标缩小、副标题隐藏 */
+    .prizeBar{gap:9px; padding:4px 12px 4px 4px; border-radius:11px}
+    .prizeBar .pbBox{width:clamp(34px, 11vh, 46px)}
+    .prizeBar .pbBox .cell{font-size:clamp(17px, 6vh, 26px)}
+    .prizeBar .pbLv{font-size:9px}
+    .prizeBar .pbNm{font-size:clamp(13px, 4.4vh, 17px)}
+    .prizeBar .pbSub{display:none}
+    /* 滚轮以高度为准，三格加起来不超过舞台一半 */
+    #digits{--cell:min(13vh, 11vw, 84px)}
+    .spinBtn{
+      font-size:clamp(15px, 5vh, 21px); padding:.3em 1.4em .36em;
+      /* 立体底边收薄，否则会盖住紧接着的提示文字 */
+      box-shadow:0 6px 0 #6d2c1e, 0 10px 14px rgba(0,0,0,.5),
+                 inset 0 3px 0 rgba(255,255,255,.35);
+    }
+    .spinBtn, .reel{--lift:4px}
+    /* 提示行不再占固定高度（定格上跳已由别处解决），留出按钮立体边的空间 */
+    #dm{min-height:0; padding-top:10px; font-size:12px}
+    .big{font-size:clamp(16px, 5.4vh, 24px)}
+    .card{--cw:min(16vw, 37vh, 150px); --lift:4px}
+    #cards{gap:clamp(8px, 1.6vw, 16px)}
+    /* 卡牌的积木厚度会探出盒子外，提示语要让开，否则会被压住 */
+    #cm{margin-top:14px}
+  }
+
   /* ===== 手机横屏：底栏收成不换行的一条，把画面还给舞台 ===== */
   @media (max-height: 520px){
     #foot{
