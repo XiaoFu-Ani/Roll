@@ -302,8 +302,8 @@
   }
   @keyframes popIn{from{transform:scale(.7); opacity:0} to{transform:scale(1); opacity:1}}
   .sub{font-size:15px; color:var(--ink2); max-width:62ch}
-  .holding{font-size:14px; color:var(--gold); border:1px dashed var(--gold);
-           border-radius:99px; padding:4px 16px}
+  /* 晋级轮标题里被押上去的那件，用金色点出来 */
+  .big em{font-style:normal; color:var(--gold)}
 
   .box{
     width:clamp(105px,13vw,148px); aspect-ratio:1/1; border-radius:10px; overflow:hidden;
@@ -431,7 +431,7 @@
   .card{
     --cw:min(27vw, 30vh, 330px);
     width:var(--cw); height:calc(var(--cw) * 1.55);
-    perspective:1000px; cursor:pointer;
+    perspective:1000px; cursor:pointer; position:relative;
   }
   /* 每张牌按稀有度取色 */
   .card{--rc:var(--r1); --rcd:var(--r1d); --rcrgb:var(--r1rgb)}
@@ -439,7 +439,8 @@
   .card[data-r="3"]{--rc:var(--r3); --rcd:var(--r3d); --rcrgb:var(--r3rgb)}
   .card[data-r="4"]{--rc:var(--r4); --rcd:var(--r4d); --rcrgb:var(--r4rgb)}
   .card[data-r="5"]{--rc:var(--r5); --rcd:var(--r5d); --rcrgb:var(--r5rgb)}
-  .inner{position:relative; width:100%; height:100%; transform-style:preserve-3d;
+  .inner{position:relative; z-index:1;   /* 压在辉光和粒子之上 */
+         width:100%; height:100%; transform-style:preserve-3d;
          transform:rotateY(180deg); transition:transform .82s cubic-bezier(.3,.9,.3,1)}
   .card.flipped .inner{transform:rotateY(0deg)}
   /* 入场：从下方带缩放飞入 */
@@ -454,11 +455,11 @@
     background:var(--panel); overflow:hidden;
     display:flex; flex-direction:column; align-items:center;
     box-shadow:
-      0 0 0 3px rgba(196,190,224,.30),          /* 灰色外描边，未选中也有轮廓 */
+      0 0 0 4px rgba(248,245,255,.80),          /* 浅色外框：把卡和外面的光隔开 */
       0 var(--lift) 0 var(--ink-stroke),
       0 calc(var(--lift) + 5px) 0 var(--panel2),
       0 calc(var(--lift) + 9px) 0 var(--ink-stroke),
-      0 20px 30px rgba(0,0,0,.5);
+      0 14px 22px rgba(0,0,0,.34);      /* 收薄一点，免得压暗身后的光团 */
   }
   .front{background:linear-gradient(180deg, var(--rcd), var(--panel) 58%)}
   .back{
@@ -467,9 +468,17 @@
       repeating-linear-gradient(-45deg, rgba(255,255,255,.05) 0 12px, transparent 12px 24px),
       linear-gradient(160deg,#3a2f5e,#241d3d);
   }
+  /* 卡背主图。线稿类图案缩小后笔画会消失，所以居中放大，不做平铺 */
   .back .mark{
-    font-family:var(--mono); font-size:64px; color:#efe6ff; opacity:.5;
-    --ow:1.5px; --oc:rgba(0,0,0,.4); text-shadow:var(--outline);
+    width:72%; height:52%;
+    background:url('art/textures/card_icon.png') center/contain no-repeat;
+    opacity:.62;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.45));
+    animation:backFloat 5.2s ease-in-out infinite;
+  }
+  @keyframes backFloat{
+    0%,100%{transform:translateY(0)    rotate(-1.5deg)}
+    50%    {transform:translateY(-6px) rotate(1.5deg)}
   }
   .card.sel{transform:translateY(-20px) rotate(-1.7deg) scale(1.04); transition:transform .18s var(--squash)}
   .card.sel .face{box-shadow:
@@ -523,6 +532,204 @@
   }
 
 
+  /* ============ 卡牌辉光 · 四周粒子 · 表面扫光 ============ */
+  /* 边缘辉光：档位越高铺得越开、越亮 */
+  /* 用 box-shadow 而不是 radial-gradient：渐变最亮处在中心，
+     而中心正好被牌挡住，露出来的只剩最淡的外缘；box-shadow 天生
+     从边缘往外扩散，才是参考图那种包边光晕 */
+  /* 光团垫在卡后面，尺寸远大于卡。卡盖住中间最亮的部分，
+     露出来的是一圈雾化的光，形状不跟随卡的圆角矩形 */
+  .aura{
+    position:absolute; left:50%; top:50%; z-index:0; pointer-events:none;
+    width:calc(var(--cw) * var(--bw));
+    height:calc(var(--cw) * var(--bh));
+    margin-left:calc(var(--cw) * var(--bw) / -2);
+    margin-top:calc(var(--cw) * var(--bh) / -2);
+    background:radial-gradient(closest-side,
+      rgba(var(--rcrgb), .92) 0%,
+      rgba(var(--rcrgb), .62) 30%,
+      rgba(var(--rcrgb), .30) 52%,
+      rgba(var(--rcrgb), .11) 72%,
+      rgba(var(--rcrgb), .03) 87%,
+      transparent 100%);
+    /* 再糊一道，边界才不会有渐变的环状带 */
+    filter:blur(calc(var(--cw) * .05));
+    animation:auraPulse 3.8s ease-in-out infinite;
+  }
+  @keyframes auraPulse{
+    0%,100%{opacity:calc(var(--gop) * .78); transform:scale(.96)}
+    50%    {opacity:var(--gop);             transform:scale(1.04)}
+  }
+
+  /* 四周飘散的粒子。它排在牌面之前，被牌挡住的部分自然看不见，
+     只在辉光那一圈露出来，不会盖住牌面美术 */
+  .sparks{position:absolute; inset:-15%; z-index:0; pointer-events:none}
+  .sparks i{
+    position:absolute; bottom:0;
+    width:var(--ms,11px); height:var(--ms,11px);
+    background:var(--rc);
+    /* 经典四角星：两轴拉长、腰部收紧 */
+    clip-path:polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%,
+                      50% 100%, 39% 61%, 0% 50%, 39% 39%);
+    filter:drop-shadow(0 0 5px var(--rc));
+    opacity:0; will-change:transform;
+    /* transform 的百分比按元素自身算，几像素的点飘不动，
+       所以行程换算成卡牌尺寸：容器高 ≈ 牌高 * 1.3 ≈ --cw * 2 */
+    --rise:calc(var(--cw) * -2.1);
+    animation:sparkUp var(--md,6.4s) linear var(--mdl,0s) infinite;
+  }
+  /* 上浮途中带闪烁和缓慢自转，不然一堆星星齐步走会很假 */
+  @keyframes sparkUp{
+    0%  {transform:translate(0,0) scale(.3) rotate(0deg); opacity:0}
+    10% {opacity:1}
+    24% {opacity:.42}
+    38% {opacity:1}
+    55% {transform:translate(var(--mx,10px), calc(var(--rise) * .55))
+                   scale(1) rotate(95deg); opacity:.62}
+    72% {opacity:1}
+    88% {opacity:.32}
+    100%{transform:translate(0, var(--rise)) scale(.55) rotate(190deg); opacity:0}
+  }
+  /* 位置偏向左右两侧，中间几颗只在牌的上下方露脸 */
+  .sparks i:nth-child(1) {left: -2%; --md:6.2s; --mdl:0s;   --ms:12px; --mx: 13px}
+  .sparks i:nth-child(2) {left:  7%; --md:7.6s; --mdl:1.7s; --ms:16px; --mx:-11px}
+  .sparks i:nth-child(3) {left: 93%; --md:6.9s; --mdl:3.2s; --ms:14px; --mx:-14px}
+  .sparks i:nth-child(4) {left:101%; --md:8.4s; --mdl:.9s;  --ms:10px; --mx:-9px}
+  .sparks i:nth-child(5) {left: 17%; --md:7.1s; --mdl:4.4s; --ms: 8px; --mx: 15px}
+  .sparks i:nth-child(6) {left: 86%; --md:8.0s; --mdl:2.4s; --ms:15px; --mx: 8px}
+  .sparks i:nth-child(7) {left: 46%; --md:9.0s; --mdl:5.2s; --ms:11px; --mx:-12px}
+  .sparks i:nth-child(8) {left: 73%; --md:6.6s; --mdl:3.0s; --ms:18px; --mx: 10px}
+  .sparks i:nth-child(9) {left: 27%; --md:9.4s; --mdl:6.3s; --ms:13px; --mx:-13px}
+  .sparks i:nth-child(10){left: 61%; --md:7.8s; --mdl:2.0s; --ms: 9px; --mx: 12px}
+  .sparks i:nth-child(11){left: 37%; --md:8.7s; --mdl:4.9s; --ms:16px; --mx:-10px}
+
+  /* 表面扫光：从右下扫向左上，间歇一次。
+     只给三档及以上——三张牌同屏时低档也带特效就拉不开差距了 */
+  .card[data-r="3"] .front::after,
+  .card[data-r="4"] .front::after,
+  .card[data-r="5"] .front::after{
+    content:''; position:absolute; inset:0; z-index:3; pointer-events:none;
+    background:linear-gradient(135deg,
+      transparent 40%,
+      rgba(255,255,255,.09) 46%,
+      rgba(255,255,255,var(--sheen,.18)) 50%,
+      rgba(255,255,255,.09) 54%,
+      transparent 60%);
+    transform:translate(118%, 118%);
+    animation:sheenSweep 5.4s ease-in-out infinite;
+  }
+  @keyframes sheenSweep{
+    0%, 56%{transform:translate(118%, 118%)}
+    100%   {transform:translate(-118%, -118%)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .sparks{display:none}
+    .aura,.front::after{animation:none}
+  }
+
+  /* ============ 晋级轮：背景升温 ============ */
+  body[data-round]{--rgcrgb:var(--r2rgb)}
+  body[data-round="3"]{--rgcrgb:var(--r3rgb)}
+  body[data-round="4"]{--rgcrgb:var(--r4rgb)}
+  body[data-round="5"]{--rgcrgb:var(--r5rgb)}
+  /* 波点提速。方向和网格都不变，只是走得更快，所以不会出现层间交叉 */
+  body[data-round] #bgFx{animation-duration:19s}
+  body[data-round="4"] #bgFx,
+  body[data-round="5"] #bgFx{animation-duration:14s}
+  /* 轮次光晕：从画面中心透出的轮次色，缓慢呼吸 */
+  #roundAura{
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0;
+    transition:opacity .8s ease-out;
+    background:radial-gradient(ellipse 120% 78% at 50% 50%,
+               rgba(var(--rgcrgb, 77,196,92), .17), transparent 70%);
+  }
+  body[data-round] #roundAura{
+    opacity:1; animation:auraBreathe 4.2s ease-in-out infinite;
+  }
+  @keyframes auraBreathe{
+    0%,100%{transform:scale(1);    opacity:.7}
+    50%    {transform:scale(1.05); opacity:1}
+  }
+
+  /* ============ 晋级过场：压暗 → 轮次砸入 → 冲击波 → 散开 ============ */
+  #roundGate{
+    position:fixed; inset:0; z-index:310; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0;
+    --gc:var(--r2);                 /* 轮次色，由 JS 按轮数替换 */
+  }
+  #roundGate.go{opacity:1}
+  /* 压暗层独立出来：它要先撤走把画面还给卡牌，
+     大字才能继续留一会儿做视觉暂留，而不会挡住入场和翻牌 */
+  .rgVeil{
+    position:absolute; inset:0; background:rgba(8,6,16,.78); opacity:0;
+  }
+  #roundGate.go .rgVeil{animation:gateVeil 1.73s ease-out forwards}
+  @keyframes gateVeil{
+    0%{opacity:0} 6%{opacity:1} 28%{opacity:1} 46%{opacity:0} 100%{opacity:0}
+  }
+  .rgWrap{position:relative; display:flex; align-items:center; justify-content:center}
+  /* 冲击波圆环 */
+  .rgRing{
+    position:absolute; width:22vmin; height:22vmin; border-radius:50%;
+    border:.9vmin solid var(--gc); opacity:0;
+  }
+  #roundGate.go .rgRing{animation:gateRing .62s cubic-bezier(.12,.85,.3,1) .18s forwards}
+  @keyframes gateRing{
+    0%  {transform:scale(.3); opacity:.95}
+    100%{transform:scale(4.2); opacity:0; border-width:.1vmin}
+  }
+  /* 轮次大字 */
+  .rgNum{
+    position:relative;
+    font-family:var(--disp); font-size:min(17vw, 22vh);
+    line-height:1; letter-spacing:.04em; color:#fff;
+    --ow:.9vmin; --oc:var(--ink-stroke);
+    text-shadow:var(--outline),
+                0 0 6vmin var(--gc), 0 1.2vmin 0 rgba(0,0,0,.5);
+    opacity:0;
+  }
+  #roundGate.go .rgNum{animation:gateNum 1.73s forwards}
+  @keyframes gateNum{
+    /* 砸入的节奏不变（仍是 260ms 到位），只把停留从 850ms 拉到 1280ms，
+       尾巴改成渐弱：先快掉到四成，再慢慢化掉，留一层淡影 */
+    0%  {transform:scale(2.7) rotate(-7deg); opacity:0;
+         animation-timing-function:cubic-bezier(.2,.9,.25,1)}
+    15% {transform:scale(1) rotate(0); opacity:1;
+         animation-timing-function:cubic-bezier(.3,1.7,.5,1)}
+    20% {transform:scale(1.07) rotate(0)}
+    25% {transform:scale(1) rotate(0)}
+    /* 牌在 430ms 落位、1050ms 开始翻转，所以大字必须在 ~800ms 前收掉亮度，
+       剩下的全交给渐弱长尾：翻牌时它只是一层很淡的残影，不挡画面 */
+    46% {transform:scale(1) rotate(0); opacity:1;
+         animation-timing-function:ease-out}
+    60% {transform:scale(1.05) rotate(0); opacity:.30}
+    100%{transform:scale(1.22) rotate(0); opacity:0}
+  }
+  /* 调试用慢放：所有分段等比拉长 4 倍，正式流程不受影响 */
+  #roundGate.slow.go .rgVeil{animation-duration:6.92s}
+  #roundGate.slow.go .rgNum{animation-duration:6.92s}
+  #roundGate.slow.go .rgRing{animation-duration:2.48s; animation-delay:.72s}
+  #roundGate.slow.go .rgBar{animation-duration:2s; animation-delay:.4s}
+
+  /* 速度线：只在字的上下各扫一条，别抢主体 */
+  .rgBar{
+    position:absolute; left:-60vw; width:220vw; height:1.1vmin;
+    background:linear-gradient(90deg, transparent, var(--gc), transparent);
+    opacity:0;
+  }
+  .rgBar.t{top:-9vmin} .rgBar.b{bottom:-9vmin}
+  #roundGate.go .rgBar.t{animation:gateBarL .5s ease-out .1s forwards}
+  #roundGate.go .rgBar.b{animation:gateBarR .5s ease-out .1s forwards}
+  @keyframes gateBarL{
+    0%{transform:translateX(30vw); opacity:0} 35%{opacity:.9}
+    100%{transform:translateX(-16vw); opacity:0}
+  }
+  @keyframes gateBarR{
+    0%{transform:translateX(-30vw); opacity:0} 35%{opacity:.9}
+    100%{transform:translateX(16vw); opacity:0}
+  }
+
   /* ============ 揭晓：就在选中的那张牌上开 ============ */
   #flash{
     position:fixed; inset:0; z-index:300; background:#fff;
@@ -565,6 +772,18 @@
     100%{transform:rotateY(0) translate(0,0)}
   }
   /* ===== 蓄力时的档次差异：抖幅、辉光、光环、光芒 ===== */
+  /* 辉光 / 扫光的分级参数。透明度写死成常量，不在 rgba 里做 calc */
+  /* --gs 控制泛光铺开的倍率，--gop 控制整体亮度。
+     衰减曲线（下面那五层的透明度）各档共用，所以档位差异是
+     "光摊得更大更亮"，而不是"描边更粗" */
+  /* --bw/--bh 是光团相对卡宽的倍数，--gop 是整体亮度。
+     卡本身是 1 x 1.55，光团要明显大过它，露出来的才是光而不是描边 */
+  .card          {--bw:1.55;--bh:1.95; --gop:.38}
+  .card[data-r="2"]{--bw:1.8; --bh:2.25; --gop:.54}
+  .card[data-r="3"]{--bw:2.2; --bh:2.75; --gop:.78; --sheen:.19}
+  .card[data-r="4"]{--bw:2.5; --bh:3.1;  --gop:.90; --sheen:.24}
+  .card[data-r="5"]{--bw:2.9; --bh:3.5;  --gop:1;   --sheen:.30}
+
   .card[data-r="1"]{--amp:2px;   --pow:.45}
   .card[data-r="2"]{--amp:2.5px; --pow:.8}
   .card[data-r="3"]{--amp:3px;   --pow:1.3}
@@ -865,8 +1084,18 @@
 
 <!-- ============ 编辑器 ============ -->
 <div id="bgFx"></div>
+<div id="roundAura"></div>
 <div id="vig"></div>
 <div id="flash"></div>
+<div id="roundGate" class="hide">
+  <div class="rgVeil"></div>
+  <div class="rgWrap">
+    <div class="rgBar t"></div>
+    <div class="rgBar b"></div>
+    <div class="rgRing"></div>
+    <div class="rgNum">第 2 轮</div>
+  </div>
+</div>
 
 <button id="gear" title="设置（Esc）">⚙</button>
 
@@ -1209,6 +1438,15 @@ function renderEditor(){
         nm + '</button>').join('') +
     '</div>' +
     '<div class="pvGrid">' +
+      '<span class="pvLbl">晋级轮（过场 + 该轮牌面）</span>' +
+      [2,3,4,5].map(n =>
+        '<button class="btn r' + n + '" data-act="pv" data-k="gate" data-r="' + n + '">' +
+        '第 ' + n + ' 轮</button>').join('') +
+      '<button class="btn" data-act="pv" data-k="gateOnly" data-r="3">只播过场</button>' +
+      '<button class="btn' + (gateSlow ? ' main' : '') + '" data-act="pvSlow">' +
+        (gateSlow ? '慢放 ×4：开' : '慢放 ×4：关') + '</button>' +
+    '</div>' +
+    '<div class="pvGrid">' +
       '<span class="pvLbl">只看结果页</span>' +
       [['普通',1],['稀有',2],['超稀有',3],['史诗',4],['传说',5]].map(([nm,r]) =>
         '<button class="btn r' + r + '" data-act="pv" data-k="res" data-r="' + r + '">' +
@@ -1335,6 +1573,7 @@ $('edBody').addEventListener('click', e => {
   else if (a === 'pickImg'){ imgTarget = { ti, ii }; $('fileImg').click(); return; }
   else if (a === 'pv'){ preview(b.dataset.k, parseInt(b.dataset.r, 10)); return; }
   else if (a === 'pvExit'){ pvExit(); return; }
+  else if (a === 'pvSlow'){ gateSlow = !gateSlow; renderEditor(); return; }
   else if (a === 'bgPreset'){
     cfg.theme = cfg.theme || {};
     cfg.theme.bg = b.dataset.c;
@@ -1535,6 +1774,7 @@ function slotHTML(){
 
 function screenPrize(tier, tag, sub){
   mode = 'prize';
+  setRoundMark(1);                 // 新的一位上场，背景回到常温
   cur = { tier, baseTier:tier, tag };
   stopFx();
   clearDrawTimers();
@@ -1730,7 +1970,40 @@ function startChoice(round){
   const cards = [{ kind:'take', tier:base, p:1 }];
   risks.forEach(t => cards.push({ kind:'risk', tier:t, p:pRisk(base,t) }));
   cur.round = round; cur.cards = cards; cur.sel = 0;
-  renderChoice(round > 1);
+  setRoundMark(round);
+  if (round > 1) roundGate(round, () => renderChoice(true));
+  else renderChoice(false);
+}
+
+/* 背景升温的开关。只有晋级轮才打标记，普通轮必须清掉，
+   否则背景会一直停在上一次的轮次色上 */
+function setRoundMark(round){
+  const b = document.body;
+  if (round > 1) b.dataset.round = String(Math.min(5, round));
+  else delete b.dataset.round;
+}
+
+/* 晋级过场。牌在过场过半时就在幕后摆好，等压暗散开正好露出来 */
+let gateT = 0;
+let gateSlow = false;          // 预览台的慢放开关，正式流程始终为 false
+function roundGate(n, done){
+  const g = $('roundGate');
+  if (!g) return done();
+  const num = g.querySelector('.rgNum');
+  if (num) num.textContent = '第 ' + n + ' 轮';
+  // 轮次越高颜色越贵，和卡牌稀有度同一套色板
+  g.style.setProperty('--gc', 'var(--r' + Math.min(5, n) + ')');
+  g.classList.remove('hide', 'go');
+  g.classList.toggle('slow', gateSlow);
+  void g.offsetWidth;                       // 强制重排，动画才能重播
+  g.classList.add('go');
+  // 慢放时两个定时器要一起拉长，否则牌会在过场还没散时就露出来
+  const k = gateSlow ? 4 : 1;
+  const close = () => { g.classList.add('hide'); g.classList.remove('go'); };
+  clearTimeout(gateT);
+  drawTimers.push(() => { clearTimeout(gateT); close(); });
+  if (done) setTimeout(done, 430 * k);
+  gateT = setTimeout(close, 1760 * k);
 }
 function finaleChoice(){
   const S = lowestTier();
@@ -1739,6 +2012,14 @@ function finaleChoice(){
   cards.push({ kind:'risk', tier:GRAND, p: S>=0 ? pRisk(S,GRAND) : 1 });
   cur.cards = cards; cur.sel = 0; cur.round = 1;
   renderChoice(false, S >= 0 ? '要这件，还是搏全场最大的那个？' : '没有别的牌了 —— 这一张，必中');
+}
+
+/* 辉光每档都有（强度分级），粒子从二档起，档位越高颗数越多 */
+function cardFxHTML(r){
+  // 粒子也从三档起。一二档只保留辉光，靠亮度和铺开程度区分
+  const n = r >= 5 ? 11 : r >= 4 ? 8 : r >= 3 ? 6 : 0;
+  return '<div class="aura"></div>' +
+         (n ? '<div class="sparks">' + '<i></i>'.repeat(n) + '</div>' : '');
 }
 
 function renderChoice(climbed, customSub){
@@ -1752,14 +2033,15 @@ function renderChoice(climbed, customSub){
   $stage.innerHTML =
     '<div class="phase-tag">' + cur.tag + (cur.round > 1 ? ' · 第 ' + cur.round + ' 轮' : '') + '</div>' +
     (climbed
-      ? '<div class="holding">' + pad(cur.num) + ' 号已赢到 ' + esc(nextItem(cur.tier).nm) +
-        '（' + T[cur.tier].price + ' 元）—— 还要再赌吗</div>'
+      ? '<div class="big">赌上 <em>' + esc(nextItem(cur.tier).nm) + '</em>，还是落袋？</div>'
       : '<div class="big">' + pad(cur.num) + ' 号 · ' + (only ? '开吧' : '选一张') + '</div>') +
     '<div id="cards">' +
       cards.map((c,i) => {
         const it = nextItem(c.tier);
         return '<div class="card' + (i===0?' sel':'') + '" data-r="' +
-            Math.min(5, c.tier + 1) + '"><div class="inner">' +
+            Math.min(5, c.tier + 1) + '">' +
+          cardFxHTML(Math.min(5, c.tier + 1)) +
+          '<div class="inner">' +
           '<div class="face front' + (c.kind==='take'?' safe':'') + '">' +
             '<div class="ico">' + itemHTML(it) + '</div>' +
             '<div class="info">' +
@@ -1769,7 +2051,7 @@ function renderChoice(climbed, customSub){
               '<div class="val">' + T[c.tier].price + ' 元 · ' +
                 (c.kind==='take' ? '直接带走' : '输了拿' + esc(cfg.medal.nm)) + '</div>' +
             '</div>' +
-          '</div><div class="face back"><div class="mark">?</div></div>' +
+          '</div><div class="face back"><div class="mark"></div></div>' +
         '</div></div>';
       }).join('') +
     '</div><div class="sub" id="cm">翻牌中…</div>';
@@ -2138,6 +2420,7 @@ function pvExit(){
   phase = p.phase; failStreak = p.failStreak; forceGive = p.forceGive;
   grandGiven = p.grandGiven; cur = p.cur;
   stopFx(); clearDrawTimers();
+  setRoundMark(1);
   const st = $('pvState');
   if (st) st.textContent = '';
   nextStep();
@@ -2165,6 +2448,24 @@ function preview(kind, rarity){
   const tier = Math.min(GRAND, r - 1);
 
   if (kind === 'flip'){ pvCards(3, false); return; }
+
+  // 晋级过场：摆一个「手里已有 n-1 档」的局面，播过场再落到选牌界面
+  if (kind === 'gate'){
+    const n = Math.max(2, Math.min(5, rarity || 2));
+    const held = Math.max(0, Math.min(GRAND - 1, n - 1));
+    const risks = pickRisks(held);
+    cur = { tier:held, baseTier:held, tag:'预览', num:88, round:n, sel:0 };
+    cur.cards = [{ kind:'take', tier:held, p:1 }].concat(
+      risks.map(t => ({ kind:'risk', tier:t, p:pRisk(held, t) })));
+    setRoundMark(n);                 // 预览也要升温，不然这一项没法调
+    roundGate(n, () => renderChoice(true));
+    return;
+  }
+  // 只重放过场，不动当前画面，纯调节奏时用
+  if (kind === 'gateOnly'){
+    roundGate(Math.max(2, Math.min(5, rarity || 2)), null);
+    return;
+  }
 
   if (kind === 'draw'){
     const t = lowestTier();
