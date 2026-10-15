@@ -1,3 +1,6 @@
 # 抠图过程中的调试预览图
 art/*_preview.png
 art/_*.png
+
+# 旧版本的本地备份，历史里已经有了
+index.v*.html
