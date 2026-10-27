@@ -1658,6 +1658,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
+const BUILD = 'v6 · 10-27 20:39';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3017,8 +3018,11 @@ function onBtn(e){
 $('foot').addEventListener('click', onBtn);
 $('foot').addEventListener('touchend', onBtn, { passive:true });
 
+/* 挂在 #game 上而不是 window：iOS WebKit（Safari / 微信内置）对挂在 window、document、body
+   上的 click 委托有老规矩 —— 点到 div 这类"非交互元素"时可能根本不派发 click。
+   挂在普通祖先 div 上就没这事。#game 只包 #stage 和 #foot，齿轮、编辑器、三个弹层都在外面。 */
 let lastTap = 0, lastCardTap = 0;
-addEventListener('click', e => {
+$('game').addEventListener('click', e => {
   if (editorOpen) return;
   if (ruleOpen() || breakOpen()) return;
   if (!$('resumeLayer').classList.contains('hide')) return;
@@ -3106,7 +3110,7 @@ function renderEditor(){
   const mb = maxBatch();
   let html = '';
 
-  html += '<div class="sec"><h3>基本</h3>' +
+  html += '<div class="sec"><h3>基本　<span class="h3s">' + BUILD + '</span></h3>' +
     '<div class="fld" style="margin-bottom:8px"><label>参与人数</label>' +
       '<input class="inp num" type="number" min="1" value="' + cfg.guests + '" data-f="guests">' +
       '<span class="unit">号码池 001 ~ ' + pad(cfg.guests) + '</span></div>' +
