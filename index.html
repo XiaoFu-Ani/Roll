@@ -1528,6 +1528,83 @@
     width:28px; height:30px; padding:0; font-size:15px; line-height:1;
     display:flex; align-items:center; justify-content:center; flex:none;
   }
+
+  /* ================= v6：移动设备适配 =================
+     注意：v5 时代那批 @media 里写的是 #cards{--cw:…}，而 v6 用的是
+     #cards.pGrid{…}，优先级更高，所以那些老规则对 v6 一条都没生效。
+     这里一律用 #cards.pGrid 重写。 */
+
+  /* 点一下就走，不要双击缩放的 300ms 延迟，也不要长按弹菜单 */
+  #game{touch-action:manipulation}
+  .card.pk, .bkCard, .spinBtn, #foot .btn{-webkit-tap-highlight-color:transparent}
+
+  /* iPhone 的 Home 指示条会压住底栏 */
+  #foot{padding-bottom:calc(8px + env(safe-area-inset-bottom, 0px))}
+
+  /* ---- 手机竖屏：高度富裕，把牌放大，别浪费 ---- */
+  @media (max-width: 560px){
+    #cards.pGrid{
+      --cw:min(calc((100vw - 26px) / (var(--cols,4) * 1.12)), 21vh, 200px);
+      gap:calc(var(--cw) * .1);
+    }
+    #cards.pGrid.big{--cw:min(calc((100vw - 26px) / (var(--cols,4) * 1.1)), 23vh, 210px)}
+    #cards.pGrid.solo{--cw:min(62vw, 30vh, 230px)}
+    .soloRow{gap:14px}
+    #claim{gap:7px 9px}
+    .cw{padding:7px 11px; gap:7px}
+    .bkCard{width:calc(50vw - 26px)}
+    .bkCards{gap:11px}
+    #foot .btn{font-size:11.5px; padding:7px 10px}
+    #foot .keys{gap:5px}
+    #foot kbd{display:none}      /* 窄屏一律当触屏，徽章只占地方 */
+    #foot .keys .btn{flex:none; white-space:nowrap}
+    #status{font-size:10.5px}
+  }
+
+  /* ---- 手机横屏：390 高是最紧的，两行牌 + 底栏必须都在屏内 ---- */
+  @media (max-height: 520px){
+    #cards.pGrid{
+      --cw:min(calc((100vw - 40px) / (var(--cols,4) * 1.24)), 18vh, 140px);
+      gap:calc(var(--cw) * .11);
+    }
+    #cards.pGrid.big{--cw:min(calc((100vw - 36px) / (var(--cols,4) * 1.2)), 19vh, 150px)}
+    #cards.pGrid.solo{--cw:min(34vw, 46vh, 190px)}
+    .cd{height:clamp(20px,3.2vh,30px)}
+    .cdN{font-size:clamp(17px,4.4vh,26px)}
+    .starTag{font-size:calc(var(--cw) * .1); padding:2px 7px}
+    #claim{gap:5px 8px}
+    .cw{padding:5px 10px; gap:7px}
+    .cn{font-size:clamp(15px,4.4vh,20px)}
+    .ci{font-size:clamp(15px,4.4vh,20px)}
+    .cm2{font-size:clamp(11px,3vh,14px)}
+    .bkCard{width:clamp(110px,16vw,165px)}
+    .bkIdle{gap:clamp(10px,2.4vh,22px)}
+  }
+
+  /* ---- 触屏：快捷键徽章纯占地方 ---- */
+  @media (hover: none){
+    #foot kbd{display:none}
+    .bkHint2 kbd, #ruleLayer kbd{display:none}
+  }
+
+  /* ---- 编辑器：窄屏时整行会挤爆，拆成两行 ---- */
+  @media (max-width: 620px){
+    #editor{width:100vw}
+    #edHead{flex-wrap:wrap; gap:6px; padding:10px 12px}
+    #edHead .t{width:100%; margin-bottom:1px}
+    #edHead .btn{font-size:12px; padding:7px 11px; white-space:nowrap}
+    .prowHead{display:none}
+    .prow, .brow{
+      flex-wrap:wrap; row-gap:5px; padding-bottom:8px; margin-bottom:8px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+    }
+    .prow .inp.nm{flex:1 1 150px}
+    .prow .inp.p3{width:70px}
+    .prow .inp.p4{width:92px}
+    .brow .inp.bnm{flex:1 1 120px}
+    .brow .inp.bsrc{flex:1 1 150px}
+    .ratio{font-size:11.5px}
+  }
 </style>
 
 <body>
@@ -1537,7 +1614,7 @@
 <div id="vig"></div>
 <div id="flash"></div>
 
-<button id="gear" title="设置（Esc）">⚙</button>
+<button id="gear" title="设置（Ctrl+E）">⚙</button>
 
 <div id="editor" class="hide">
   <div id="edHead">
@@ -2870,12 +2947,27 @@ function act(name){
   }
 }
 
-const KEYS = { ArrowLeft:'left', ArrowRight:'right', KeyD:'redraw', KeyB:'break',
-               KeyH:'rules', Space:'advance', Enter:'decide',
-               KeyR:'restart', Escape:'settings' };
+/* 遥控笔（翻页笔）本质是个 HID 键盘，按 PowerPoint 的约定发键：
+   下一页=PageDown、上一页=PageUp、黑屏=B、开始/结束放映=F5/Esc。
+   所以 PageDown/PageUp 要认，F5 要吞掉（否则整页重载），
+   Esc 不能再开编辑器 —— 它既是遥控笔的「结束放映」，也是浏览器退出全屏的键。 */
+const KEYS = { ArrowLeft:'left', ArrowRight:'right', PageUp:'left', PageDown:'advance',
+               KeyD:'redraw', KeyB:'break', KeyH:'rules',
+               Space:'advance', Enter:'decide', KeyR:'restart' };
+const THROTTLED = { advance:1, decide:1 };   // 遥控笔长按会连发，推进类要节流
+let lastKeyAct = 0;
 
 addEventListener('keydown', e => {
-  if (editorOpen && e.code !== 'Escape') return;
+  if (e.code === 'F5'){ e.preventDefault(); return; }     // 遥控笔的「开始放映」，别让它重载
+  if (e.code === 'Escape'){                               // 只关不开
+    e.preventDefault();
+    if (editorOpen) backToGame(false);
+    return;
+  }
+  if (e.code === 'KeyE' && (e.ctrlKey || e.metaKey)){      // 键盘开编辑器的入口
+    e.preventDefault(); toggleEditor(); return;
+  }
+  if (editorOpen) return;
   const dg = /^Digit([1-9])$/.exec(e.code);
   if (dg && mode === 'pick'){ e.preventDefault(); pickCard(+dg[1] - 1); return; }
   if (ruleOpen() && e.code !== 'KeyH') return;
@@ -2884,6 +2976,11 @@ addEventListener('keydown', e => {
   const a = KEYS[e.code];
   if (!a) return;
   e.preventDefault();
+  if (THROTTLED[a]){
+    const now = Date.now();
+    if (now - lastKeyAct < 350) return;
+    lastKeyAct = now;
+  }
   act(a);
 });
 
