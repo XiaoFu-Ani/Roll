@@ -1915,11 +1915,15 @@ const remainCount = () => deck.filter(d => d.by === null).length;
 /* 整批只有一件：不盖牌、不洗牌、不编号，奖品全程摆着，抽到号直接结算 */
 const isSolo = () => deck.length === 1;
 
-/* 牌面稀有度：镇批之宝一律最高档辉光，其余随批次递增 */
+/* 牌面稀有度按批次整体递进，金色只留给最后一批：
+   前面各批普通牌在 1~3 之间随批次爬升，镇批之宝 = 本批普通 + 1（最高到紫）；
+   最后一批宝固定金、其余固定紫。宝一上来就金会把大奖那一下的对比冲淡。 */
 function rarityOf(p){
-  if (p && p.star) return 5;                       // 宝一律最高档辉光
-  const n = Math.max(1, batches.length - 1);       // 普通牌从第一批的素色一路升到最后一批
-  return Math.min(4, 1 + Math.round(bi * 3 / n));
+  const star = !!(p && p.star);
+  if (isLastBatch()) return star ? 5 : 4;
+  const m = Math.max(1, batches.length - 1);       // 最后一批之前有几批
+  const base = 1 + Math.min(2, Math.round(bi * 3 / m));
+  return star ? base + 1 : base;
 }
 
 function shuffled(arr){
@@ -2195,6 +2199,7 @@ function firstUnopened(){
 function screenPick(){
   mode = 'pick';
   cur.sel = firstUnopened();
+  cur.touched = false;        // 预高亮那张只是倒计时的默认牌，不算有人选过
   stopFx(); clearDrawTimers();
   document.body.classList.add('compact');
   $stage.innerHTML =
@@ -2222,14 +2227,21 @@ function moveSel(d){
     if (deck[i].by === null) break;
   }
   cur.sel = i;
+  cur.touched = true;
   markSel();
 }
 
+/* 点牌 / 按数字都是两段式：第一下只选中（上浮高亮），再点同一张才翻。
+   进屏时第 1 张是预高亮的（倒计时归零翻它），但没人动过选择之前点它也只算选中 ——
+   永远两下，不用记特例。空格 / Enter / 倒计时归零走 openCard，照旧直接翻高亮那张。 */
 function pickCard(i){
   if (mode !== 'pick') return;
   if (i < 0 || i >= deck.length || deck[i].by !== null) return;
+  if (cur.touched && i === cur.sel) return openCard(i);
   cur.sel = i;
-  openCard(i);
+  cur.touched = true;
+  markSel();
+  setSub('选了第 ' + (i + 1) + ' 张　·　再点一次或按 <kbd>空格</kbd> 翻开');
 }
 
 function openCard(i){
@@ -2243,21 +2255,24 @@ function openCard(i){
   prizeCount++;
   saveGame();                 // 牌一翻就存，别等演出放完
   const r = rarityOf(d.p);
-  const el = $stage.querySelectorAll('.card.pk')[i];
-  if (el){
-    const front = el.querySelector('.face.front');
-    if (front) front.innerHTML = faceHTML(d.p, d.by);
-    el.setAttribute('data-r', String(r));
-    const fx = el.querySelector('.fx');
-    if (fx) fx.outerHTML = cardFxHTML(r);
-    el.classList.remove('sel');
-    void el.offsetWidth;
-    el.classList.add('flipped');
-  }
+  flipUp($stage.querySelectorAll('.card.pk')[i], d, r);
   const cd = $('cd'); if (cd) cd.innerHTML = '';
   setSub('……');
   const t = setTimeout(() => revealPick(i, r), 880);
   drawTimers.push(() => clearTimeout(t));
+}
+
+/* 把一张扣着的牌翻成正面：填正面（带号码角标）、升到真实品质的辉光、起翻转过渡 */
+function flipUp(el, d, r){
+  if (!el) return;
+  const front = el.querySelector('.face.front');
+  if (front) front.innerHTML = faceHTML(d.p, d.by);
+  el.setAttribute('data-r', String(r));
+  const fx = el.querySelector('.fx');
+  if (fx) fx.outerHTML = cardFxHTML(r);
+  el.classList.remove('sel');
+  void el.offsetWidth;
+  el.classList.add('flipped');
 }
 
 /* 揭晓的那套演出：蓄力 → 压暗 → 白闪 → 震屏 → 彩带。
@@ -2300,13 +2315,14 @@ function revealPick(i, r){
                   : '这一批翻完了　按 <kbd>空格</kbd> 看领奖名单');
 }
 
-/* ---------- 单件批次：奖品摆着，只等号码 ---------- */
+/* ---------- 单件批次：牌扣着，只等号码 ----------
+   不洗不编号（就一张），但也不亮相：大字只说「全场最大的奖」，是什么要翻开才知道。
+   抽到号 → 空格 → 翻过来 → 走和普通牌一样的揭晓演出 */
 function screenSolo(){
   mode = 'prize';
   cur = { num: 0, sel: 0 };
   stopFx(); clearDrawTimers(); stopCountdown();
   document.body.classList.add('compact');
-  const p = deck[0].p, r = rarityOf(p);
   $stage.innerHTML =
     '<div class="phase-tag">' + batchTag(bi) + '</div>' +
     '<div class="big" id="bg">' +
@@ -2314,10 +2330,10 @@ function screenSolo(){
     // 奖品和滚轮并排：竖着摞会把标题和按钮挤出屏幕，横向空间反而一直空着
     '<div class="soloRow">' +
       '<div id="cards" class="pGrid solo" style="--cols:1">' +
-        '<div class="card pk flipped' + (p.star ? ' starCard' : '') + '" data-r="' + r + '">' +
-          cardFxHTML(r) +
+        '<div class="card pk" data-r="1" data-i="0">' +     // 扣着时和普通牌一样一档辉光，翻开再升
+          cardFxHTML(1) +
           '<div class="inner">' +
-            '<div class="face front">' + faceHTML(p, null) + '</div>' +
+            '<div class="face front"></div>' +
             '<div class="face back"><div class="num"></div></div>' +
           '</div></div>' +
       '</div>' +
@@ -2341,9 +2357,14 @@ function soloReveal(){
   d.by = cur.num;
   prizeCount++;
   saveGame();
-  playReveal($stage.querySelector('.card.pk'), rarityOf(d.p),
+  const r = rarityOf(d.p);
+  const el = $stage.querySelector('.card.pk');
+  flipUp(el, d, r);
+  setSub('……');
+  const t = setTimeout(() => playReveal(el, r,
     pad(d.by) + ' 号 · 获得 <em>' + esc(d.p.nm) + '</em>',
-    '按 <kbd>空格</kbd> 继续');
+    '按 <kbd>空格</kbd> 继续'), 880);
+  drawTimers.push(() => clearTimeout(t));
 }
 
 /* ---------- 倒计时 ---------- */
@@ -2996,7 +3017,7 @@ function onBtn(e){
 $('foot').addEventListener('click', onBtn);
 $('foot').addEventListener('touchend', onBtn, { passive:true });
 
-let lastTap = 0;
+let lastTap = 0, lastCardTap = 0;
 addEventListener('click', e => {
   if (editorOpen) return;
   if (ruleOpen() || breakOpen()) return;
@@ -3006,13 +3027,19 @@ addEventListener('click', e => {
   if (t && t.closest && (t.closest('#foot') || t.closest('#editor') || t.closest('#gear') ||
       t.closest('#resumeLayer') || t.closest('#breakLayer') || t.closest('#ruleLayer'))) return;
   const now = Date.now();
+  if (mode === 'pick' && t && t.closest && t.closest('#cards')){
+    // 牌走自己的节流：400ms 会把「点选 → 再点翻开」的第二下吞掉，
+    // 这里只防触摸设备把一次点按发成两个事件
+    const card = t.closest('.card.pk');
+    if (!card) return;                   // 手机上牌小，戳到缝隙不能当成「翻高亮那张」
+    if (now - lastCardTap < 120) return;
+    lastCardTap = now;
+    const i = +card.dataset.i;
+    if (!isNaN(i)) pickCard(i);
+    return;
+  }
   if (now - lastTap < 400) return;
   lastTap = now;
-  const card = t && t.closest ? t.closest('.card.pk') : null;
-  if (mode === 'pick' && card){
-    const i = +card.dataset.i;
-    if (!isNaN(i)) return pickCard(i);
-  }
   if (t && t.closest && t.closest('#spinHold')) return;   // 抽号按钮自己有处理
   act('advance');
 });
