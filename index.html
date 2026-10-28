@@ -1652,6 +1652,7 @@
   .clSum.err{color:var(--red)}
   .clA{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap}
   .btn[disabled]{opacity:.42; cursor:default; box-shadow:none; transform:none}
+  .cloudRow .btn.peek{flex:none; font-size:12px; padding:6px 10px; box-shadow:0 2px 0 var(--ink-stroke)}
   .lockBox{margin-top:12px; font-size:13px; color:var(--ink2); border-top:1px dashed var(--line); padding-top:10px}
   .lockBox summary{cursor:pointer; color:var(--ink3); font-size:12px; user-select:none}
   .lockBox .cloudRow{margin-top:8px}
@@ -1714,7 +1715,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-28 17:04';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-28 17:15';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3401,6 +3402,15 @@ $('edBody').addEventListener('click', e => {
   if (act2 === 'cloudDown'){ cloudPick(); return; }
   if (act2 === 'mkLock'){ lockGenerate(); return; }
   if (act2 === 'dlLock'){ lockDownload(); return; }
+  if (act2 === 'rekey'){ lockRekey(); return; }
+  if (act2 === 'peek'){                                   // 口令 / token 明文看一眼，默认都是打码的
+    const inp = document.querySelector(b.dataset.for === 'pass' ? '[data-cf="pass"]' : '[data-lk="token"]');
+    if (!inp) return;
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    b.textContent = show ? '隐藏' : '显示';
+    return;
+  }
   if (act2 === 'brkfull'){ backToGame(false); toggleBreak(); return; }
 });
 
@@ -3489,7 +3499,8 @@ function cloudSectionHTML(){
       '<input class="inp" data-cf="repo" value="' + esc(cloud.repo) + '" placeholder="用户名/仓库名" spellcheck="false"></div>' +
     '<div class="cloudRow"><label>小组口令</label>' +
       '<input class="inp tok" type="password" data-cf="pass" value="' + esc(cloud.pass) +
-        '" placeholder="管理员发的口令（管理员也可以直接贴 token）" spellcheck="false" autocomplete="off"></div>' +
+        '" placeholder="管理员发的口令（管理员也可以直接贴 token）" spellcheck="false" autocomplete="off">' +
+      '<button class="btn peek" data-act="peek" data-for="pass">显示</button></div>' +
     '<div class="cloudRow"><label>你的名字</label>' +
       '<input class="inp" data-cf="name" value="' + esc(cloud.name) + '" placeholder="上传记录里显示这个名字" maxlength="24" style="max-width:200px"></div>' +
     '<div class="cloudRow"><label>上传备注</label>' +
@@ -3503,12 +3514,16 @@ function cloudSectionHTML(){
       '上传前图片会压到牌面尺寸，本机原图不动。拉取会用拉到的清单<b>重开一局</b>。</div>' +
     '<details class="lockBox"><summary>管理员：生成口令锁（把 token 用口令加密，嵌进页面）</summary>' +
       '<div class="cloudRow"><label>GitHub token</label>' +
-        '<input class="inp tok" type="password" data-lk="token" placeholder="github_pat_…" spellcheck="false" autocomplete="off"></div>' +
+        '<input class="inp tok" type="password" data-lk="token" placeholder="github_pat_…" spellcheck="false" autocomplete="off">' +
+        '<button class="btn peek" data-act="peek" data-for="lktoken">显示</button></div>' +
       '<div class="cloudRow"><label>小组口令</label>' +
         '<input class="inp" data-lk="pass" placeholder="12 位以上，别用一个词" spellcheck="false" autocomplete="off"></div>' +
       '<div class="prowFoot"><button class="btn" data-act="mkLock">生成</button>' +
         '<button class="btn" data-act="dlLock" disabled>下载 cloud.key</button>' +
         '<span class="unit" id="lockMsg"></span></div>' +
+      '<div class="cloudRow" style="margin-top:12px"><label>换口令</label>' +
+        '<input class="inp" data-lk="newpass" placeholder="只填新口令（12 位以上），旧口令用本机记住的" spellcheck="false" autocomplete="off">' +
+        '<button class="btn" data-act="rekey">换</button></div>' +
       '<textarea id="lockOut" readonly placeholder="生成的口令锁会显示在这里"></textarea>' +
       '<div class="tip2">仓库设成<b>私有</b>。Token 在 github.com/settings/personal-access-tokens/new 生成，只勾 Roll-config、Contents 读写。' +
         '把下载的 cloud.key 放到 lottery-config 文件夹，重新构建发布后页面就带锁了；换 token 只需重新生成一次。' +
@@ -3793,7 +3808,7 @@ async function unlockToken(pass){
   const key = await deriveKey(pass, ub64(parts[1]));
   let pt;
   try{ pt = await subtle().decrypt({ name:'AES-GCM', iv: ub64(parts[2]) }, key, ub64(parts[3])); }
-  catch(e){ throw new Error('口令不对'); }
+  catch(e){ throw new Error('口令不对（刚换过口令的话填新的；页面刚重新发布的话先刷新）'); }
   const token = new TextDecoder().decode(pt);
   tokenCache = { key: ck, token };
   return token;
@@ -3814,6 +3829,32 @@ async function lockGenerate(){
     if (tEl) tEl.value = '';                 // token 用完就清，别留在输入框里
     say('生成好了。下载 cloud.key 放到 lottery-config 文件夹，重新发布页面。', false);
   }catch(err){ say('生成失败：' + err.message, true); }
+}
+
+/* 换口令：用本机记住的旧口令把锁打开，再用新口令锁一遍。不用再碰 token。
+   本机口令随手换成新的 —— 新页面发布前别上传（会报口令不对）。 */
+async function lockRekey(){
+  const nEl = document.querySelector('[data-lk="newpass"]');
+  const out = $('lockOut'), msg = $('lockMsg'), dl = document.querySelector('[data-act="dlLock"]');
+  const say = (t, bad) => { if (msg){ msg.textContent = t; msg.style.color = bad ? 'var(--red)' : ''; } };
+  const np = nEl ? nEl.value.trim() : '';
+  if (np.length < 12) return say('新口令至少 12 位', true);
+  if (!cloud.pass) return say('本机没记住旧口令：先在上面「小组口令」里填一次', true);
+  if (!CLOUD_LOCK && !looksLikeToken(cloud.pass)) return say('页面里还没有口令锁，先用上面的 token 生成', true);
+  if (np === cloud.pass) return say('新口令和旧的一样', true);
+  say('用本机记住的旧口令解锁中…');
+  try{
+    const token = await unlockToken(cloud.pass);
+    lockText = await makeLock(token, np);
+    if (out) out.value = lockText;
+    if (dl) dl.disabled = false;
+    if (nEl) nEl.value = '';
+    cloud.pass = np; saveCloud();
+    tokenCache = { key:'', token:'' };
+    const pEl = document.querySelector('[data-cf="pass"]');
+    if (pEl) pEl.value = np;
+    say('换好了。下载 cloud.key 放到 lottery-config 重新发布；本机口令已换成新的，新页面发布前先别上传；同事要改成新口令。');
+  }catch(err){ say('换口令失败：' + err.message, true); }
 }
 function lockDownload(){
   if (!lockText) return;
