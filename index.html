@@ -1714,7 +1714,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-28 16:57';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-28 17:04';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3454,7 +3454,7 @@ $('fileImport').addEventListener('change', e => {
    上传前先比对云端当前版本和本机最后同步到的版本，别人在那之后改过就先问再覆盖。 */
 const CLOUD_KEY = 'lottery.cloud.v1';
 const CLOUD_DEF = { repo:'XiaoFu-Ani/Roll-config', pass:'', name:'', branch:'main', path:'config.json', sha:'', commit:'', at:0 };
-const CLOUD_LOCK = '';   // 构建时从 lottery-config/cloud.key 嵌入：用小组口令加密过的 token；没有就是空串
+const CLOUD_LOCK = 'v1.3lS5xa4FTcz5DbQgXf22EA.kuBTA8SWS11xf1ES.vrgOGuUM_uaHmvBMRy2sALVzEwbygUq8qP0Cr2Wrhr-qyz25SS2lCkJisOXnXOqXqb9a8V7ai1vL_Kjg0Rn8gqztzno03wvg5jaqwcTweVk_CsFCTbQg211Bf3W11N2DMkG81RT9OGUShHMdcQ';   // 构建时从 lottery-config/cloud.key 嵌入：用小组口令加密过的 token；没有就是空串
 const LOCK_ITER = 600000;
 let tokenCache = { key:'', token:'' };
 const IMG_MAX = 360;            // 上传时图片最长边；牌面上一张图也就两三百像素
