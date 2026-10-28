@@ -1651,6 +1651,15 @@
   .clSum{font-size:13px; color:var(--ink2); line-height:1.7; min-height:1.4em}
   .clSum.err{color:var(--red)}
   .clA{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap}
+  .btn[disabled]{opacity:.42; cursor:default; box-shadow:none; transform:none}
+  .lockBox{margin-top:12px; font-size:13px; color:var(--ink2); border-top:1px dashed var(--line); padding-top:10px}
+  .lockBox summary{cursor:pointer; color:var(--ink3); font-size:12px; user-select:none}
+  .lockBox .cloudRow{margin-top:8px}
+  .lockBox textarea{
+    width:100%; min-height:56px; margin-top:8px; font-family:var(--mono); font-size:11px; line-height:1.5;
+    background:var(--panel2); color:var(--ink2); border:1px solid var(--line); border-radius:8px; padding:8px;
+    word-break:break-all; resize:vertical;
+  }
 </style>
 
 <body>
@@ -1705,7 +1714,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-28 16:20';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-28 16:57';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3390,6 +3399,8 @@ $('edBody').addEventListener('click', e => {
   if (act2 === 'img'){ imgTarget = pi; $('fileImg').click(); return; }
   if (act2 === 'cloudUp'){ cloudUpload(); return; }
   if (act2 === 'cloudDown'){ cloudPick(); return; }
+  if (act2 === 'mkLock'){ lockGenerate(); return; }
+  if (act2 === 'dlLock'){ lockDownload(); return; }
   if (act2 === 'brkfull'){ backToGame(false); toggleBreak(); return; }
 });
 
@@ -3442,7 +3453,10 @@ $('fileImport').addEventListener('change', e => {
    每次上传 = 一次 git 提交，备注就是版本说明；拉取时列最近 20 个版本任选。
    上传前先比对云端当前版本和本机最后同步到的版本，别人在那之后改过就先问再覆盖。 */
 const CLOUD_KEY = 'lottery.cloud.v1';
-const CLOUD_DEF = { repo:'XiaoFu-Ani/Roll-config', token:'', branch:'main', path:'config.json', sha:'', at:0 };
+const CLOUD_DEF = { repo:'XiaoFu-Ani/Roll-config', pass:'', name:'', branch:'main', path:'config.json', sha:'', commit:'', at:0 };
+const CLOUD_LOCK = '';   // 构建时从 lottery-config/cloud.key 嵌入：用小组口令加密过的 token；没有就是空串
+const LOCK_ITER = 600000;
+let tokenCache = { key:'', token:'' };
 const IMG_MAX = 360;            // 上传时图片最长边；牌面上一张图也就两三百像素
 let cloud = loadCloud();
 let cloudPicked = null;         // 版本弹层里选中的那版 { sha, file:{ sha, cfg } }
@@ -3451,7 +3465,12 @@ let cloudBusy = false;
 function loadCloud(){
   try{
     const c = JSON.parse(localStorage.getItem(CLOUD_KEY) || 'null');
-    if (c && typeof c === 'object') return Object.assign({}, CLOUD_DEF, c);
+    if (c && typeof c === 'object'){
+      const m = Object.assign({}, CLOUD_DEF, c);
+      if (!m.pass && c.token) m.pass = c.token;     // 上一版直接存 token 的，原样当口令用
+      delete m.token;
+      return m;
+    }
   }catch(e){}
   return clone(CLOUD_DEF);
 }
@@ -3464,12 +3483,15 @@ function fmtKB(n){ return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math
 function syncText(){ return cloud.at ? fmtWhen(new Date(cloud.at)) + ' · 版本 ' + cloud.sha.slice(0, 7) : '还没同步过'; }
 
 function cloudSectionHTML(){
-  return '<div class="sec"><h3>云端　<span class="h3s">私有仓库存配置，多人多设备同步</span></h3>' +
+  return '<div class="sec"><h3>云端　<span class="h3s">私有仓库存配置，多人多设备同步 · 口令锁' +
+      (CLOUD_LOCK ? '已嵌入' : '<b>未嵌入</b>') + '</span></h3>' +
     '<div class="cloudRow"><label>仓库</label>' +
       '<input class="inp" data-cf="repo" value="' + esc(cloud.repo) + '" placeholder="用户名/仓库名" spellcheck="false"></div>' +
-    '<div class="cloudRow"><label>Token</label>' +
-      '<input class="inp tok" type="password" data-cf="token" value="' + esc(cloud.token) +
-        '" placeholder="github_pat_…（只存在这台浏览器里）" spellcheck="false" autocomplete="off"></div>' +
+    '<div class="cloudRow"><label>小组口令</label>' +
+      '<input class="inp tok" type="password" data-cf="pass" value="' + esc(cloud.pass) +
+        '" placeholder="管理员发的口令（管理员也可以直接贴 token）" spellcheck="false" autocomplete="off"></div>' +
+    '<div class="cloudRow"><label>你的名字</label>' +
+      '<input class="inp" data-cf="name" value="' + esc(cloud.name) + '" placeholder="上传记录里显示这个名字" maxlength="24" style="max-width:200px"></div>' +
     '<div class="cloudRow"><label>上传备注</label>' +
       '<input class="inp" id="cloudNote" placeholder="这版改了什么，可不填" maxlength="80"></div>' +
     '<div class="prowFoot">' +
@@ -3477,9 +3499,21 @@ function cloudSectionHTML(){
       '<button class="btn" data-act="cloudDown">从云端拉取…</button>' +
       '<span class="sp"></span><span class="unit" id="cloudSync">上次同步：' + syncText() + '</span></div>' +
     '<div class="cloudMsg" id="cloudMsg"></div>' +
-    '<div class="tip2">仓库要设成<b>私有</b>（配置里有价格）。Token 在 GitHub → Settings → Developer settings → ' +
-      'Fine-grained tokens 生成，只勾这一个仓库、Contents 读写；它只存在这台浏览器里，不进配置文件。' +
+    '<div class="tip2">同事只要填口令和名字，口令和名字只存在这台浏览器里，不进配置文件。' +
       '上传前图片会压到牌面尺寸，本机原图不动。拉取会用拉到的清单<b>重开一局</b>。</div>' +
+    '<details class="lockBox"><summary>管理员：生成口令锁（把 token 用口令加密，嵌进页面）</summary>' +
+      '<div class="cloudRow"><label>GitHub token</label>' +
+        '<input class="inp tok" type="password" data-lk="token" placeholder="github_pat_…" spellcheck="false" autocomplete="off"></div>' +
+      '<div class="cloudRow"><label>小组口令</label>' +
+        '<input class="inp" data-lk="pass" placeholder="12 位以上，别用一个词" spellcheck="false" autocomplete="off"></div>' +
+      '<div class="prowFoot"><button class="btn" data-act="mkLock">生成</button>' +
+        '<button class="btn" data-act="dlLock" disabled>下载 cloud.key</button>' +
+        '<span class="unit" id="lockMsg"></span></div>' +
+      '<textarea id="lockOut" readonly placeholder="生成的口令锁会显示在这里"></textarea>' +
+      '<div class="tip2">仓库设成<b>私有</b>。Token 在 github.com/settings/personal-access-tokens/new 生成，只勾 Roll-config、Contents 读写。' +
+        '把下载的 cloud.key 放到 lottery-config 文件夹，重新构建发布后页面就带锁了；换 token 只需重新生成一次。' +
+        '口令锁在公开页面里，安全性等于口令强度。</div>' +
+    '</details>' +
   '</div>';
 }
 function cloudMsg(text, kind){
@@ -3494,6 +3528,7 @@ $('edBody').addEventListener('input', e => {
   if (!el || !el.dataset || el.dataset.cf === undefined) return;
   const k = el.dataset.cf, v = el.value.trim();
   if (k === 'repo' && v !== cloud.repo){ cloud.sha = ''; cloud.at = 0; cloudSyncRefresh(); }   // 换仓库 = 另一条历史
+  if (k === 'pass') tokenCache = { key:'', token:'' };
   cloud[k] = v;
   saveCloud();
 });
@@ -3501,10 +3536,11 @@ $('edBody').addEventListener('input', e => {
 /* ---------- GitHub 接口 ---------- */
 function ghUrl(p){ return 'https://api.github.com/repos/' + cloud.repo.replace(/^\/+|\/+$/g, '') + p; }
 async function gh(method, path, body, raw){
-  if (!cloud.token) throw new Error('先填 Token');
+  if (!cloud.pass) throw new Error('先填小组口令');
   if (!/^[\w.-]+\/[\w.-]+$/.test(cloud.repo.trim())) throw new Error('仓库名要写成「用户名/仓库名」');
+  const token = await unlockToken(cloud.pass);
   const headers = {
-    'Authorization': 'Bearer ' + cloud.token,
+    'Authorization': 'Bearer ' + token,
     'Accept': raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
@@ -3523,7 +3559,7 @@ async function gh(method, path, body, raw){
 function cloudErr(err){
   const s = err && err.status;
   if (!s && /fetch|network/i.test(err && err.message || '')) return '连不上 GitHub，检查网络：' + err.message;
-  if (s === 401) return 'Token 不对或已过期';
+  if (s === 401) return 'token 不对或已过期：口令锁里那个 token 可能被撤销了，管理员重新生成口令锁';
   if (s === 403) return '没权限（token 要勾上这个仓库的 Contents 读写）：' + err.message;
   if (s === 404) return '找不到仓库或文件，或 token 没有这个仓库的权限：' + cloud.repo;
   if (s === 409) return '云端刚被别人改过，先「从云端拉取」再上传';
@@ -3591,6 +3627,7 @@ async function cloudUpload(){
   if (cloudBusy) return;
   cloudBusy = true;
   try{
+    if (!cloud.name.trim()) throw new Error('先填「你的名字」，上传记录按它区分');
     cloudMsg('打包中…');
     const packed = await packCfg();
     cloudMsg('检查云端…');
@@ -3601,7 +3638,7 @@ async function cloudUpload(){
         const list = await gh('GET', '/commits?path=' + cloud.path + '&sha=' + cloud.branch + '&per_page=1');
         const c = list && list[0];
         if (c) who = '（' + fmtWhen(new Date(c.commit.committer.date)) + ' ' +
-                     ((c.author && c.author.login) || c.commit.author.name) + '：' +
+                     ((c.commit.author && c.commit.author.name) || (c.author && c.author.login) || '') + '：' +
                      c.commit.message.split('\n')[0] + '）';
       }catch(e){}
       if (!confirm('云端有本机没同步过的版本' + who + '。\n\n覆盖它？取消 = 先去「从云端拉取」看看。')){
@@ -3611,7 +3648,8 @@ async function cloudUpload(){
     }
     const noteEl = $('cloudNote');
     const note = (noteEl && noteEl.value.trim()) || ('更新配置 ' + fmtWhen(new Date()));
-    const body = { message: note, content: b64utf8(packed.json), branch: cloud.branch };
+    const who = { name: cloud.name.trim(), email: 'roll-config@example.com' };   // 版本列表按名字认人，不看 GitHub 账号
+    const body = { message: note, content: b64utf8(packed.json), branch: cloud.branch, author: who, committer: who };
     if (meta) body.sha = meta.sha;
     cloudMsg('上传中…（' + fmtKB(packed.bytes) + '）');
     const r = await gh('PUT', '/contents/' + cloud.path, body);
@@ -3656,7 +3694,7 @@ async function cloudPick(){
     }
     const rows = list.map(c => {
       const when = fmtWhen(new Date(c.commit.committer.date));
-      const who = (c.author && c.author.login) || c.commit.author.name || '';
+      const who = (c.commit.author && c.commit.author.name) || (c.author && c.author.login) || '';
       const msg = (c.commit.message || '').split('\n')[0];
       const cur = cloud.sha && c.sha === cloud.commit ? ' on' : '';
       return '<div class="clV' + cur + '" data-cv="' + c.sha + '"><span class="t">' + when + '</span>' +
@@ -3709,6 +3747,80 @@ function cloudUse(){
   cloud.sha = pk.fileSha; cloud.commit = pk.sha; cloud.at = Date.now(); saveCloud();
   closeCloudLayer();
   backToGame(true);                       // 用拉到的清单重开一局
+}
+
+/* ---------- 口令锁：token 用小组口令加密后嵌进页面 ----------
+   PBKDF2-SHA256 60 万次拉伸 → AES-GCM-256。锁串格式 v1.<salt>.<iv>.<密文>，全 base64url。
+   口令是 github_pat_ / ghp_ 开头就当作 token 本身（管理员直接贴）。解出来的 token 只放内存。 */
+function b64u(u){
+  let b = '';
+  for (let i = 0; i < u.length; i++) b += String.fromCharCode(u[i]);
+  return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function ub64(s){
+  s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const b = atob(s), u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+function subtle(){
+  const c = (window.crypto || {}).subtle;
+  if (!c) throw new Error('这个页面不在安全上下文里（要 https 或本地文件打开），没法解口令锁');
+  return c;
+}
+async function deriveKey(pass, salt){
+  const base = await subtle().importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return subtle().deriveKey({ name:'PBKDF2', salt, iterations: LOCK_ITER, hash:'SHA-256' }, base,
+                            { name:'AES-GCM', length:256 }, false, ['encrypt', 'decrypt']);
+}
+async function makeLock(token, pass){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt);
+  const ct = new Uint8Array(await subtle().encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(token)));
+  return 'v1.' + b64u(salt) + '.' + b64u(iv) + '.' + b64u(ct);
+}
+function looksLikeToken(s){ return /^(github_pat_|ghp_|gho_|ghs_)[A-Za-z0-9_]+$/.test(s); }
+async function unlockToken(pass){
+  pass = String(pass || '').trim();
+  if (looksLikeToken(pass)) return pass;
+  if (!CLOUD_LOCK) throw new Error('页面里还没有口令锁：管理员先在下面「生成口令锁」并重新发布，或者直接贴 token');
+  const ck = pass + '|' + CLOUD_LOCK;
+  if (tokenCache.key === ck) return tokenCache.token;
+  const parts = CLOUD_LOCK.split('.');
+  if (parts[0] !== 'v1' || parts.length !== 4) throw new Error('页面里的口令锁格式不对');
+  const key = await deriveKey(pass, ub64(parts[1]));
+  let pt;
+  try{ pt = await subtle().decrypt({ name:'AES-GCM', iv: ub64(parts[2]) }, key, ub64(parts[3])); }
+  catch(e){ throw new Error('口令不对'); }
+  const token = new TextDecoder().decode(pt);
+  tokenCache = { key: ck, token };
+  return token;
+}
+let lockText = '';
+async function lockGenerate(){
+  const tEl = document.querySelector('[data-lk="token"]'), pEl = document.querySelector('[data-lk="pass"]');
+  const out = $('lockOut'), msg = $('lockMsg'), dl = document.querySelector('[data-act="dlLock"]');
+  const token = tEl ? tEl.value.trim() : '', pass = pEl ? pEl.value.trim() : '';
+  const say = (t, bad) => { if (msg){ msg.textContent = t; msg.style.color = bad ? 'var(--red)' : ''; } };
+  if (!looksLikeToken(token)) return say('token 看起来不对，应该是 github_pat_ 或 ghp_ 开头', true);
+  if (pass.length < 12) return say('口令至少 12 位', true);
+  say('生成中…');
+  try{
+    lockText = await makeLock(token, pass);
+    if (out) out.value = lockText;
+    if (dl) dl.disabled = false;
+    if (tEl) tEl.value = '';                 // token 用完就清，别留在输入框里
+    say('生成好了。下载 cloud.key 放到 lottery-config 文件夹，重新发布页面。', false);
+  }catch(err){ say('生成失败：' + err.message, true); }
+}
+function lockDownload(){
+  if (!lockText) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lockText + '\n'], { type:'text/plain' }));
+  a.download = 'cloud.key';
+  a.click();
 }
 
 $('cloudLayer').addEventListener('click', e => {
