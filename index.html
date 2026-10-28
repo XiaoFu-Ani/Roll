@@ -1619,6 +1619,38 @@
     .brow .inp.bsrc{flex:1 1 150px}
     .ratio{font-size:11.5px}
   }
+
+  /* ================= 云端配置 ================= */
+  .cloudRow{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; font-size:13px; color:var(--ink2)}
+  .cloudRow label{min-width:96px}
+  .cloudRow .inp{flex:1; min-width:180px; max-width:440px}
+  .cloudRow .inp.tok{font-family:var(--mono); font-size:12px}
+  .cloudMsg{font-size:12.5px; color:var(--ink3); margin-top:8px; line-height:1.6; min-height:1.2em; word-break:break-all}
+  .cloudMsg.err{color:var(--red)}
+  .cloudMsg.ok{color:var(--gold)}
+  #cloudLayer{
+    position:fixed; inset:0; z-index:960; background:rgba(0,0,0,.74);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .clBox{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:22px 24px; display:flex; flex-direction:column; gap:12px;
+    width:min(600px, 94vw); max-height:88vh;
+  }
+  .clT{font-size:18px; font-weight:800}
+  .clList{overflow-y:auto; display:flex; flex-direction:column; gap:6px; min-height:48px}
+  .clV{
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:9px; cursor:pointer;
+    background:var(--panel2); border:1px solid var(--line); font-size:13px; color:var(--ink2);
+  }
+  .clV:hover, .clV.on{border-color:var(--gold)}
+  .clV.on{background:rgba(255,201,60,.08)}
+  .clV .t{font-family:var(--mono); font-size:12px; color:var(--ink3); white-space:nowrap}
+  .clV .m{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit}
+  .clV .w{font-size:12px; color:var(--ink3); white-space:nowrap}
+  .clSum{font-size:13px; color:var(--ink2); line-height:1.7; min-height:1.4em}
+  .clSum.err{color:var(--red)}
+  .clA{display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap}
 </style>
 
 <body>
@@ -1663,6 +1695,7 @@
 <div id="ruleLayer" class="hide"></div>
 <div id="breakLayer" class="hide"></div>
 <div id="resumeLayer" class="hide"></div>
+<div id="cloudLayer" class="hide"></div>
 
 <script>
 (() => {
@@ -1672,7 +1705,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-28 14:27';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-28 16:20';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3035,6 +3068,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F5'){ e.preventDefault(); return; }     // 遥控笔的「开始放映」，别让它重载
   if (e.code === 'Escape'){                               // 只关不开
     e.preventDefault();
+    if (cloudLayerOpen()){ closeCloudLayer(); return; }    // 先关版本弹层，编辑器留着
     if (editorOpen) backToGame(false);
     return;
   }
@@ -3122,6 +3156,7 @@ function showEditor(){
   document.body.classList.add('edOpen');      // 抽屉比齿轮宽，开着时让齿轮退场
 }
 function backToGame(restart){
+  closeCloudLayer();
   if (!editorOpen){
     if (restart){ clearSave(); startGame(); }
     return;
@@ -3227,6 +3262,7 @@ function renderEditor(){
 
   html += breakSectionHTML();
   html += themeSectionHTML();
+  html += cloudSectionHTML();
 
   $('edBody').innerHTML = html;
 }
@@ -3352,6 +3388,8 @@ $('edBody').addEventListener('click', e => {
     saveCfg(); renderEditor(); return;
   }
   if (act2 === 'img'){ imgTarget = pi; $('fileImg').click(); return; }
+  if (act2 === 'cloudUp'){ cloudUpload(); return; }
+  if (act2 === 'cloudDown'){ cloudPick(); return; }
   if (act2 === 'brkfull'){ backToGame(false); toggleBreak(); return; }
 });
 
@@ -3396,6 +3434,294 @@ $('fileImport').addEventListener('change', e => {
   r.readAsText(f);
   e.target.value = '';
 });
+
+/* ================= 云端配置：私有 GitHub 仓库 =================
+   配置（含价格、图片）放在一个私有仓库的 config.json 里，页面直接调 GitHub 接口读写
+   （接口对任何来源都放行 CORS，file:// 本地文件和 github.io 都能用）。
+   token 只存本机 localStorage（CLOUD_KEY），绝不进 cfg，所以导出 / 上传的 json 里都没有它。
+   每次上传 = 一次 git 提交，备注就是版本说明；拉取时列最近 20 个版本任选。
+   上传前先比对云端当前版本和本机最后同步到的版本，别人在那之后改过就先问再覆盖。 */
+const CLOUD_KEY = 'lottery.cloud.v1';
+const CLOUD_DEF = { repo:'XiaoFu-Ani/Roll-config', token:'', branch:'main', path:'config.json', sha:'', at:0 };
+const IMG_MAX = 360;            // 上传时图片最长边；牌面上一张图也就两三百像素
+let cloud = loadCloud();
+let cloudPicked = null;         // 版本弹层里选中的那版 { sha, file:{ sha, cfg } }
+let cloudBusy = false;
+
+function loadCloud(){
+  try{
+    const c = JSON.parse(localStorage.getItem(CLOUD_KEY) || 'null');
+    if (c && typeof c === 'object') return Object.assign({}, CLOUD_DEF, c);
+  }catch(e){}
+  return clone(CLOUD_DEF);
+}
+function saveCloud(){ try{ localStorage.setItem(CLOUD_KEY, JSON.stringify(cloud)); }catch(e){} }
+function fmtWhen(d){
+  const z = n => String(n).padStart(2, '0');
+  return z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+function fmtKB(n){ return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB'; }
+function syncText(){ return cloud.at ? fmtWhen(new Date(cloud.at)) + ' · 版本 ' + cloud.sha.slice(0, 7) : '还没同步过'; }
+
+function cloudSectionHTML(){
+  return '<div class="sec"><h3>云端　<span class="h3s">私有仓库存配置，多人多设备同步</span></h3>' +
+    '<div class="cloudRow"><label>仓库</label>' +
+      '<input class="inp" data-cf="repo" value="' + esc(cloud.repo) + '" placeholder="用户名/仓库名" spellcheck="false"></div>' +
+    '<div class="cloudRow"><label>Token</label>' +
+      '<input class="inp tok" type="password" data-cf="token" value="' + esc(cloud.token) +
+        '" placeholder="github_pat_…（只存在这台浏览器里）" spellcheck="false" autocomplete="off"></div>' +
+    '<div class="cloudRow"><label>上传备注</label>' +
+      '<input class="inp" id="cloudNote" placeholder="这版改了什么，可不填" maxlength="80"></div>' +
+    '<div class="prowFoot">' +
+      '<button class="btn main" data-act="cloudUp">上传到云端</button>' +
+      '<button class="btn" data-act="cloudDown">从云端拉取…</button>' +
+      '<span class="sp"></span><span class="unit" id="cloudSync">上次同步：' + syncText() + '</span></div>' +
+    '<div class="cloudMsg" id="cloudMsg"></div>' +
+    '<div class="tip2">仓库要设成<b>私有</b>（配置里有价格）。Token 在 GitHub → Settings → Developer settings → ' +
+      'Fine-grained tokens 生成，只勾这一个仓库、Contents 读写；它只存在这台浏览器里，不进配置文件。' +
+      '上传前图片会压到牌面尺寸，本机原图不动。拉取会用拉到的清单<b>重开一局</b>。</div>' +
+  '</div>';
+}
+function cloudMsg(text, kind){
+  const e = $('cloudMsg'); if (!e) return;
+  e.textContent = text || '';
+  e.className = 'cloudMsg' + (kind ? ' ' + kind : '');
+}
+function cloudSyncRefresh(){ const e = $('cloudSync'); if (e) e.textContent = '上次同步：' + syncText(); }
+
+$('edBody').addEventListener('input', e => {
+  const el = e.target;
+  if (!el || !el.dataset || el.dataset.cf === undefined) return;
+  const k = el.dataset.cf, v = el.value.trim();
+  if (k === 'repo' && v !== cloud.repo){ cloud.sha = ''; cloud.at = 0; cloudSyncRefresh(); }   // 换仓库 = 另一条历史
+  cloud[k] = v;
+  saveCloud();
+});
+
+/* ---------- GitHub 接口 ---------- */
+function ghUrl(p){ return 'https://api.github.com/repos/' + cloud.repo.replace(/^\/+|\/+$/g, '') + p; }
+async function gh(method, path, body, raw){
+  if (!cloud.token) throw new Error('先填 Token');
+  if (!/^[\w.-]+\/[\w.-]+$/.test(cloud.repo.trim())) throw new Error('仓库名要写成「用户名/仓库名」');
+  const headers = {
+    'Authorization': 'Bearer ' + cloud.token,
+    'Accept': raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (body) headers['Content-Type'] = 'application/json';
+  const res = await fetch(ghUrl(path), { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 404) return null;
+  if (!res.ok){
+    let msg = '';
+    try{ const j = await res.json(); if (j && j.message) msg = j.message; }catch(e){}
+    const err = new Error(msg || ('HTTP ' + res.status));
+    err.status = res.status;
+    throw err;
+  }
+  return raw ? res.text() : res.json();
+}
+function cloudErr(err){
+  const s = err && err.status;
+  if (!s && /fetch|network/i.test(err && err.message || '')) return '连不上 GitHub，检查网络：' + err.message;
+  if (s === 401) return 'Token 不对或已过期';
+  if (s === 403) return '没权限（token 要勾上这个仓库的 Contents 读写）：' + err.message;
+  if (s === 404) return '找不到仓库或文件，或 token 没有这个仓库的权限：' + cloud.repo;
+  if (s === 409) return '云端刚被别人改过，先「从云端拉取」再上传';
+  if (s === 422) return '云端已有配置但本机没同步过，先「从云端拉取」一次：' + err.message;
+  return (err && err.message) || String(err);
+}
+function b64utf8(s){
+  const u = new TextEncoder().encode(s);
+  let b = '';
+  for (let i = 0; i < u.length; i += 0x8000) b += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(b);
+}
+function utf8b64(b){
+  const s = atob(String(b).replace(/\s/g, ''));
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return new TextDecoder().decode(u);
+}
+
+/* ---------- 打包：复制一份，图片压小 ---------- */
+function shrinkImg(dataUrl){
+  return new Promise(resolve => {
+    if (!dataUrl || !/^data:image\//.test(dataUrl)) return resolve(dataUrl);
+    const im = new Image();
+    im.onload = () => {
+      const w = im.naturalWidth, h = im.naturalHeight;
+      if (!w || !h) return resolve(dataUrl);
+      const k = Math.min(1, IMG_MAX / Math.max(w, h));
+      if (k === 1 && dataUrl.length < 60000) return resolve(dataUrl);     // 本来就小，别重编
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w * k));
+      cv.height = Math.max(1, Math.round(h * k));
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      let out = cv.toDataURL('image/webp', .86);
+      if (!/^data:image\/webp/.test(out)){                                 // Safari 不会编 webp
+        const alpha = !/^data:image\/jpe?g/.test(dataUrl);
+        out = alpha ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', .86);
+      }
+      resolve(out.length < dataUrl.length ? out : dataUrl);
+    };
+    im.onerror = () => resolve(dataUrl);
+    im.src = dataUrl;
+  });
+}
+async function packCfg(){
+  const c = clone(cfg);
+  let imgs = 0;
+  for (const p of c.prizes){
+    if (p.img){ p.img = await shrinkImg(p.img); imgs++; }
+  }
+  delete c.token;
+  const json = JSON.stringify(c, null, 1);
+  return { json, bytes: new TextEncoder().encode(json).length, imgs };
+}
+function cfgSummary(c){
+  const bs = groupBatches(c.prizes);
+  const total = c.prizes.reduce((a, p) => a + (+p.price || 0), 0);
+  const imgs = c.prizes.filter(p => p.img).length;
+  return c.prizes.length + ' 件 · ' + bs.length + ' 批 · 合计 ' + total + ' 元 · 图片 ' + imgs + ' 张 · ' +
+         (c.guests || 0) + ' 人';
+}
+
+/* ---------- 上传 ---------- */
+async function cloudUpload(){
+  if (cloudBusy) return;
+  cloudBusy = true;
+  try{
+    cloudMsg('打包中…');
+    const packed = await packCfg();
+    cloudMsg('检查云端…');
+    const meta = await gh('GET', '/contents/' + cloud.path + '?ref=' + cloud.branch);   // null = 云端还没有
+    if (meta && meta.sha !== cloud.sha){
+      let who = '';
+      try{
+        const list = await gh('GET', '/commits?path=' + cloud.path + '&sha=' + cloud.branch + '&per_page=1');
+        const c = list && list[0];
+        if (c) who = '（' + fmtWhen(new Date(c.commit.committer.date)) + ' ' +
+                     ((c.author && c.author.login) || c.commit.author.name) + '：' +
+                     c.commit.message.split('\n')[0] + '）';
+      }catch(e){}
+      if (!confirm('云端有本机没同步过的版本' + who + '。\n\n覆盖它？取消 = 先去「从云端拉取」看看。')){
+        cloudMsg('没上传。先「从云端拉取」看看最新版再说。', 'err');
+        return;
+      }
+    }
+    const noteEl = $('cloudNote');
+    const note = (noteEl && noteEl.value.trim()) || ('更新配置 ' + fmtWhen(new Date()));
+    const body = { message: note, content: b64utf8(packed.json), branch: cloud.branch };
+    if (meta) body.sha = meta.sha;
+    cloudMsg('上传中…（' + fmtKB(packed.bytes) + '）');
+    const r = await gh('PUT', '/contents/' + cloud.path, body);
+    if (!r || !r.content) throw new Error('上传后没拿到版本号，再拉取一次确认');
+    cloud.sha = r.content.sha; cloud.commit = (r.commit && r.commit.sha) || ''; cloud.at = Date.now(); saveCloud();
+    cloudSyncRefresh();
+    if (noteEl) noteEl.value = '';
+    cloudMsg('已上传 · ' + cfgSummary(cfg) + ' · ' + fmtKB(packed.bytes) +
+             (packed.imgs ? '（图片已压小）' : '') + ' · 备注「' + note + '」', 'ok');
+  }catch(err){
+    cloudMsg('上传失败：' + cloudErr(err), 'err');
+  }finally{ cloudBusy = false; }
+}
+
+/* ---------- 拉取：列版本 → 选一个看概览 → 导入并重开 ---------- */
+function openCloudLayer(inner){
+  const L = $('cloudLayer');
+  L.innerHTML = '<div class="clBox">' + inner + '</div>';
+  L.classList.remove('hide');
+}
+function closeCloudLayer(){
+  const L = $('cloudLayer');
+  if (L.classList.contains('hide')) return;
+  L.classList.add('hide');
+  L.innerHTML = '';
+  cloudPicked = null;
+}
+function cloudLayerOpen(){ return !$('cloudLayer').classList.contains('hide'); }
+
+async function cloudPick(){
+  if (cloudBusy) return;
+  cloudBusy = true;
+  openCloudLayer('<div class="clT">从云端拉取</div><div class="clSum">读取版本列表…</div>' +
+                 '<div class="clA"><button class="btn" data-cl="close">关闭</button></div>');
+  try{
+    const list = await gh('GET', '/commits?path=' + cloud.path + '&sha=' + cloud.branch + '&per_page=20');
+    if (!cloudLayerOpen()) return;
+    if (!list || !list.length){
+      openCloudLayer('<div class="clT">从云端拉取</div><div class="clSum">云端还没有配置，先从某台机器上传一次。</div>' +
+                     '<div class="clA"><button class="btn" data-cl="close">关闭</button></div>');
+      return;
+    }
+    const rows = list.map(c => {
+      const when = fmtWhen(new Date(c.commit.committer.date));
+      const who = (c.author && c.author.login) || c.commit.author.name || '';
+      const msg = (c.commit.message || '').split('\n')[0];
+      const cur = cloud.sha && c.sha === cloud.commit ? ' on' : '';
+      return '<div class="clV' + cur + '" data-cv="' + c.sha + '"><span class="t">' + when + '</span>' +
+             '<span class="m">' + esc(msg) + '</span><span class="w">' + esc(who) + '</span></div>';
+    }).join('');
+    openCloudLayer('<div class="clT">从云端拉取　<span class="h3s">最近 ' + list.length + ' 个版本，点一个看内容</span></div>' +
+      '<div class="clList">' + rows + '</div>' +
+      '<div class="clSum" id="clSum">还没选</div>' +
+      '<div class="clA"><button class="btn" data-cl="close">关闭</button>' +
+        '<button class="btn main" data-cl="use" disabled>导入这版并重开</button></div>');
+  }catch(err){
+    if (cloudLayerOpen())
+      openCloudLayer('<div class="clT">从云端拉取</div><div class="clSum err">' + esc(cloudErr(err)) + '</div>' +
+                     '<div class="clA"><button class="btn" data-cl="close">关闭</button></div>');
+  }finally{ cloudBusy = false; }
+}
+
+async function cloudPreview(commitSha){
+  const sum = $('clSum'), use = document.querySelector('[data-cl="use"]');
+  Array.from(document.querySelectorAll('.clV')).forEach(r => r.classList.toggle('on', r.dataset.cv === commitSha));
+  if (use) use.disabled = true;
+  cloudPicked = null;
+  if (sum){ sum.textContent = '读取中…'; sum.className = 'clSum'; }
+  try{
+    let f = await gh('GET', '/contents/' + cloud.path + '?ref=' + commitSha);
+    if (!f) throw new Error('这个版本里没有 ' + cloud.path);
+    let text, fileSha = f.sha || '';
+    if (f.content) text = utf8b64(f.content);
+    else text = await gh('GET', '/contents/' + cloud.path + '?ref=' + commitSha, null, true);   // 超过 1 MB 只能拿 raw
+    const c = JSON.parse(text);
+    if (!Array.isArray(c.prizes) || !c.prizes.length) throw new Error('这个版本里没有认得出来的奖品清单');
+    const next = fillCfg(c);
+    cloudPicked = { sha: commitSha, fileSha, cfg: next };
+    if (sum){
+      const names = next.prizes.map(p => p.nm).join('、');
+      sum.textContent = cfgSummary(next) + '\n' + (names.length > 90 ? names.slice(0, 90) + '…' : names);
+      sum.style.whiteSpace = 'pre-line';
+    }
+    if (use) use.disabled = false;
+  }catch(err){
+    if (sum){ sum.textContent = cloudErr(err); sum.className = 'clSum err'; }
+  }
+}
+
+function cloudUse(){
+  if (!cloudPicked) return;
+  const pk = cloudPicked;
+  cfg = pk.cfg;
+  saveCfg(); applyTheme();
+  cloud.sha = pk.fileSha; cloud.commit = pk.sha; cloud.at = Date.now(); saveCloud();
+  closeCloudLayer();
+  backToGame(true);                       // 用拉到的清单重开一局
+}
+
+$('cloudLayer').addEventListener('click', e => {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  const v = t.closest('[data-cv]');
+  if (v){ cloudPreview(v.dataset.cv); return; }
+  const b = t.closest('[data-cl]');
+  if (!b) return;
+  if (b.dataset.cl === 'close') closeCloudLayer();
+  else if (b.dataset.cl === 'use' && !b.disabled) cloudUse();
+});
+
 
 /* ================= 启动 ================= */
 applyTheme();
