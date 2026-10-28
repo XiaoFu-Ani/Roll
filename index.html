@@ -1317,6 +1317,20 @@
   .ps b{font-size:13px; color:var(--gold); font-variant-numeric:tabular-nums}
   .ps.on{background:rgba(255,201,60,.07); border-color:rgba(255,201,60,.26)}
   .card.pk{width:var(--cw); height:calc(var(--cw) * 1.34)}
+  /* 揭晓展示：蓄力时从原位滑到舞台正中并放大（--dx/--dy/--zs 由 JS 按当前屏幕算），
+     白闪后停在正中（.showing），展示完滑回原位（.homing）。
+     v5 的 chargeShake 只横向居中（当时只有一排），v6 牌阵有两行，横竖都要对齐 */
+  .card.pk.charging{animation:chargeTo var(--chargeDur,1200ms) linear forwards}
+  @keyframes chargeTo{
+    0%  {transform:translate(0,0) scale(1)}
+    24% {transform:translate(var(--dx,0px),var(--dy,0px)) scale(var(--zsm,1.17))}
+    100%{transform:translate(var(--dx,0px),var(--dy,0px)) scale(var(--zs,1.34))}
+  }
+  .card.pk.showing{
+    z-index:20;
+    transform:translate(var(--dx,0px),var(--dy,0px)) scale(var(--zs,1.34));
+  }
+  .card.pk.homing{z-index:20; transform:none; transition:transform .56s cubic-bezier(.3,.9,.3,1)}
   /* 单件批次：奖品和滚轮左右并排。竖着摞会把标题和按钮挤出屏幕 */
   .soloRow{
     display:flex; align-items:center; justify-content:center;
@@ -1658,7 +1672,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-27 20:39';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-28 14:27';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -2276,12 +2290,45 @@ function flipUp(el, d, r){
   el.classList.add('flipped');
 }
 
-/* 揭晓的那套演出：蓄力 → 压暗 → 白闪 → 震屏 → 彩带。
-   牌留在原位，不飞走、不居中 —— 这一屏要一直看得见「还剩什么」 */
+/* 揭晓的那套演出：蓄力（从原位滑到舞台正中放大）→ 压暗 → 白闪 → 震屏 → 彩带 →
+   停在正中展示 SHOW_HOLD → 滑回原位。
+   回原位是为了这一屏接着能看见「还剩什么」；展示没放完按空格也能直接走 */
+const SHOW_HOLD = 1600, HOME_DUR = 560;
+
+/* 算这张牌到舞台中心的位移和放大倍率，写进牌自己的 CSS 变量。
+   舞台是 overflow:hidden，倍率要保证放大后整张牌还在舞台里，手机上不裁边 */
+function aimCenter(el){
+  const st = $stage.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const pad = 14;
+  const fit = Math.min((st.width - pad * 2) / r.width, (st.height - pad * 2) / r.height);
+  const zs = Math.max(1, Math.min(1.6, fit));
+  // 牌阵进屏有 popIn 缩放动画，祖先若还带着缩放，translate 是在缩放空间里走的：
+  // 用「屏幕矩形 / 布局尺寸」算出当前倍率，位移除以它才落到真正的屏幕中心
+  const k = el.offsetWidth ? r.width / el.offsetWidth : 1;
+  const dx = Math.round((st.left + st.width / 2 - (r.left + r.width / 2)) / k);
+  const dy = Math.round((st.top + st.height / 2 - (r.top + r.height / 2)) / k);
+  el.style.setProperty('--dx', dx + 'px');
+  el.style.setProperty('--dy', dy + 'px');
+  el.style.setProperty('--zs', zs.toFixed(3));
+  el.style.setProperty('--zsm', (1 + (zs - 1) * .55).toFixed(3));
+}
+
+function goHome(el){
+  el.classList.remove('showing');
+  el.classList.add('homing');
+  const t = setTimeout(() => {
+    el.classList.remove('homing');
+    ['--dx', '--dy', '--zs', '--zsm'].forEach(k => el.style.removeProperty(k));
+  }, HOME_DUR + 60);
+  drawTimers.push(() => clearTimeout(t));
+}
+
 function playReveal(el, r, bigHTML, subHTML){
   const T = REVEAL[r] || REVEAL[2];
   document.documentElement.style.setProperty('--chargeDur', T.charge + 'ms');
-  if (el) el.classList.add('charging');
+  if (el){ aimCenter(el); el.classList.add('charging'); }
   const vig = $('vig');
   if (vig){ vig.classList.remove('on'); void vig.offsetWidth; vig.classList.add('on'); }
 
@@ -2296,7 +2343,8 @@ function playReveal(el, r, bigHTML, subHTML){
       const t3 = setTimeout(() => g.classList.remove('shk','shk-lite'), 460);
       drawTimers.push(() => clearTimeout(t3));
     }
-    if (el) el.classList.remove('charging');
+    // 蓄力结束时就在正中、已放大；换成静态的展示态，不跳回去
+    if (el){ el.classList.remove('charging'); el.classList.add('showing'); }
     if (vig) vig.classList.remove('on');
     if (el) startConfetti(el, T.conf);
     setBig(bigHTML);
@@ -2304,6 +2352,10 @@ function playReveal(el, r, bigHTML, subHTML){
     mode = 'reveal';
     renderStatus();
     saveGame();
+    if (el){
+      const t4 = setTimeout(() => goHome(el), SHOW_HOLD);
+      drawTimers.push(() => clearTimeout(t4));
+    }
   }, T.charge);
   drawTimers.push(() => clearTimeout(t1));
 }
