@@ -1409,6 +1409,9 @@
   /* 不预告品质（cfg.tease 关）：抖动阶段牌背用中性的冷白光、抖幅中档；
      品质光环 / 旋转光芒靠 data-r 触发，此时 data-r 还是 1，不会出现 */
   .card.pk.charging.plain{--rc:#f1f3ff; --rcrgb:241,243,255; --pow:1.2; --amp:3.5px}
+  /* 切屏过渡（setStage）：旧画面淡出下沉 .18s，新画面从上方淡入 .24s。以前整块直接换，像跳切 */
+  #stage{transition:opacity .24s ease-out, transform .24s ease-out}
+  #stage.out{opacity:0; transform:translateY(12px); transition-duration:.18s,.18s; transition-timing-function:ease-in,ease-in}
   .card.pk.homing{z-index:20; transform:none; transition:transform .56s cubic-bezier(.3,.9,.3,1)}
   /* 单件批次：奖品和滚轮左右并排。竖着摞会把标题和按钮挤出屏幕 */
   .soloRow{
@@ -1796,7 +1799,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-29 18:17';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-29 18:37';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -2171,6 +2174,35 @@ function setBig(html){ const e = $('bg'); if (e) e.innerHTML = html; }
 function setSub(html){ const e = $('cm'); if (e) e.innerHTML = html; }
 
 /* ---------- 开批亮相 ---------- */
+/* ---------- 换舞台内容 ----------
+   统一的切屏过渡：旧画面淡出并轻微下沉（.out，.18s）→ 换内容 → 新画面从上方淡入（.24s），背景图案不动。
+   以前是整块 innerHTML 直接换，用户反馈像跳切（2026-10-29）。舞台还空着的第一屏直接铺、不淡入。
+   各 screen 函数在调用前就把 mode 设好，所以过渡那 .18s 里的按键按新屏算：抽号按钮还没进 DOM 时
+   pressSpin 自己会跳过，推进键本来就有 350ms 节流。要摸新 DOM 的事（绑按钮、量尺寸、起倒计时）放 after 里。 */
+const OUT_DUR = 180;
+let stageSwap = 0;
+function setStage(html, after){
+  const fill = (fade) => {
+    stageSwap = 0;
+    $stage.innerHTML = html;
+    $stage.classList.remove('out');
+    if (fade){                                   // 从「上方 + 透明」过渡到常态
+      $stage.style.transition = 'none';
+      $stage.style.opacity = '0';
+      $stage.style.transform = 'translateY(-12px)';
+      void $stage.offsetWidth;
+      $stage.style.transition = '';
+      $stage.style.opacity = '';
+      $stage.style.transform = '';
+    }
+    if (after) after();
+  };
+  if (stageSwap) clearTimeout(stageSwap);
+  if (!$stage.children.length) return fill(false);
+  $stage.classList.add('out');
+  stageSwap = setTimeout(() => fill(true), OUT_DUR);
+}
+
 function screenIntro(){
   mode = 'intro';
   stopFx(); clearDrawTimers(); stopCountdown();
@@ -2178,7 +2210,7 @@ function screenIntro(){
   const b = batches[bi];
   // 亮相按配置顺序摆、正面朝上、背面不印数字；
   // 洗牌会把它们真的挪到 deck 的顺序上，编号等洗完才发
-  $stage.innerHTML =
+  setStage(
     '<div class="phase-tag">' + batchTag(bi) + '</div>' +
     '<div class="big" id="bg">这一批 ' + b.items.length + ' 件</div>' +
     '<div id="cards" class="pGrid big" style="--cols:' + gridCols(b.items.length) + '">' +
@@ -2195,8 +2227,8 @@ function screenIntro(){
             '<div class="face back"><div class="num"></div></div>' +
           '</div></div>';
       }).join('') + '</div>' +
-    '<div class="sub" id="cm">看清楚了 —— 等下它们会被扣过来　<kbd>空格</kbd> 洗牌</div>';
-  enterAnim();
+    '<div class="sub" id="cm">看清楚了 —— 等下它们会被扣过来　<kbd>空格</kbd> 洗牌</div>',
+    enterAnim);
   renderStatus();
   saveGame();
 }
@@ -2319,7 +2351,7 @@ function screenSpin(){
   cur = { num: 0, sel: firstUnopened() };
   stopFx(); clearDrawTimers();
   document.body.classList.add('compact');
-  $stage.innerHTML =
+  setStage(
     '<div class="phase-tag">' + batchTag(bi) + '</div>' +
     '<div class="big" id="bg">还剩 ' + remainCount() + ' 件 · 抽下一位</div>' +
     slotHTML() +
@@ -2327,9 +2359,8 @@ function screenSpin(){
       '<button class="spinBtn" id="spinBtn">抽 号</button></div>' +
     '<div class="hint" id="dm">点按钮，或按 <kbd>空格</kbd></div>' +
     stripHTML() +
-    '<div class="sub" id="cm"></div>';
-  idleReels();
-  bindSpinBtn();
+    '<div class="sub" id="cm"></div>',
+    () => { idleReels(); bindSpinBtn(); });
   renderStatus();
 }
 
@@ -2344,15 +2375,14 @@ function screenPick(){
   cur.touched = false;        // 预高亮那张只是倒计时的默认牌，不算有人选过
   stopFx(); clearDrawTimers();
   document.body.classList.add('compact');
-  $stage.innerHTML =
+  setStage(
     '<div class="phase-tag">' + batchTag(bi) + '</div>' +
     '<div class="big" id="bg">' + pad(cur.num) + ' 号 · 翻一张</div>' +
     '<div class="cd" id="cd"></div>' +
     cardsGridHTML(true) +
-    '<div class="sub" id="cm">喊个数字就行　·　不说话也可以，倒计时结束会自动翻</div>';
-  markSel();
+    '<div class="sub" id="cm">喊个数字就行　·　不说话也可以，倒计时结束会自动翻</div>',
+    () => { markSel(); startCountdown(); });
   renderStatus();
-  startCountdown();
 }
 
 function markSel(){
@@ -2527,7 +2557,7 @@ function screenSolo(){
   cur = { num: 0, sel: 0 };
   stopFx(); clearDrawTimers(); stopCountdown();
   document.body.classList.add('compact');
-  $stage.innerHTML =
+  setStage(
     '<div class="phase-tag">' + batchTag(bi) + '</div>' +
     '<div class="big" id="bg">' +
       (bi === batches.length - 1 ? '全场最大的奖' : '这一批就这一件') + '</div>' +
@@ -2547,9 +2577,8 @@ function screenSolo(){
       '</div>' +
     '</div>' +
     '<div class="hint" id="dm">点按钮，或按 <kbd>空格</kbd></div>' +
-    '<div class="sub" id="cm"></div>';
-  idleReels();
-  bindSpinBtn();
+    '<div class="sub" id="cm"></div>',
+    () => { idleReels(); bindSpinBtn(); });
   renderStatus();
   saveGame();
 }
@@ -2598,7 +2627,7 @@ function screenBatchDone(){
   mode = 'batchDone';
   stopFx(); clearDrawTimers(); stopCountdown();
   document.body.classList.remove('compact');
-  $stage.innerHTML =
+  setStage(
     '<div class="phase-tag">' + batchTag(bi) + '</div>' +
     '<div class="big" id="bg">这一批发完了 · 请以下几位领奖</div>' +
     '<div id="claim">' + deck.map(d =>
@@ -2608,7 +2637,7 @@ function screenBatchDone(){
         '<span class="cm2">' + esc(d.p.nm) + '</span></div>').join('') + '</div>' +
     '<div class="sub" id="cm">' +
       (bi + 1 < batches.length ? '按 <kbd>空格</kbd> 进入下一批' : '按 <kbd>空格</kbd> 结束') +
-    '</div>';
+    '</div>');
   renderStatus();
   saveGame();
 }
@@ -2617,10 +2646,10 @@ function screenDone(){
   mode = 'done';
   stopFx(); clearDrawTimers(); stopCountdown();
   document.body.classList.remove('compact');
-  $stage.innerHTML =
+  setStage(
     '<div class="big" id="bg">全部发放完毕</div>' +
     '<div class="sub" id="cm">' + prizeCount + ' 位拿到奖品</div>' +
-    '<div class="hint">按 <kbd>R</kbd> 重开全场</div>';
+    '<div class="hint">按 <kbd>R</kbd> 重开全场</div>');
   renderStatus();
   clearSave();
 }
