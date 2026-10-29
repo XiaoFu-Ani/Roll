@@ -1392,8 +1392,20 @@
       0 24px 44px rgba(0,0,0,.6);
     filter:brightness(calc(1 + .12 * var(--pow,1))) saturate(calc(1 + .2 * var(--pow,1)));
   }
-  /* 品质光效层贴在牌的轮廓上、不跟着翻转，翻面时亮着就是一个停在原地的框 —— 翻完（.82s）才淡入 */
-  .card.pk.showing .fx{transition-delay:.84s}
+  /* 翻面期间品质光打在牌面自己身上：正反两面都在做 3D 翻转的 .inner 里，光跟着牌边转 ——
+     翻过 90° 之前是背面带着光转走，之后是正面带着光转出来。
+     牌外那层 .fx（aura + 粒子）不跟着转，翻面时亮着就是一个停在原地的框，所以沿用它原来的节奏：
+     翻到一半（.52s）开始淡入，翻完正好满亮，和牌面上的光接上。
+     只给正面光，不给亮度/饱和度滤镜：那是给牌背图案用的，别动奖品图 */
+  .card.pk.showing .front, .card.pk.homing .front{
+    box-shadow:
+      0 var(--lift) 0 var(--ink-stroke),
+      0 0 0 calc(3px + 2px * var(--pow,1)) var(--rc),
+      0 0 calc(26px * var(--pow,1)) var(--rc),
+      0 0 calc(80px * var(--pow,1)) rgba(var(--rcrgb), .55),
+      0 24px 44px rgba(0,0,0,.6);
+  }
+  .card.pk.flipped .front{transition:box-shadow .45s ease-out}   /* 归位到格子里后光淡掉，不突跳 */
   .card.pk.homing{z-index:20; transform:none; transition:transform .56s cubic-bezier(.3,.9,.3,1)}
   /* 单件批次：奖品和滚轮左右并排。竖着摞会把标题和按钮挤出屏幕 */
   .soloRow{
@@ -1779,7 +1791,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-29 17:39';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-29 17:52';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
