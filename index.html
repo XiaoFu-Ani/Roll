@@ -1715,7 +1715,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-28 17:15';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-29 16:59';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -2588,10 +2588,29 @@ function idleReels(){
     st.style.transform = 'translateY(' + (-(k - 1) * cell) + 'px)';
   });
 }
+/* ---------- 抽号 ----------
+   同一台老虎机，三种节奏（drawTempo）：
+     完整 —— 每批第一位、本批最后一位：三个滚轮依次刹停，约 3.8 秒
+     快停 —— 中间的人：三轮几乎同时刹车，约 1.7 秒
+     压轴 —— 最后一批：最慢，约 5.2 秒
+   滚动中再按一次推进键（空格 / 翻页笔 / 点画面）= 剩下的滚轮立刻依次刹停（brakeNow）。
+   起立坐下的梗去掉了（现场玩不起来）：前两轮停下不出字，第三轮停稳才报号。 */
+let brakeFn = null;                     // 只在滚动中有效，滚完即清
+
+function drawTempo(){
+  if (isLastBatch()) return { first:650, gap:1500, brake:1500, turns:2 };
+  const n = remainCount();
+  if (n === deck.length || n === 1) return { first:650, gap:1000, brake:1150, turns:2 };
+  return { first:500, gap:200, brake:800, turns:1 };
+}
+
+function brakeNow(){ if (brakeFn) brakeFn(); }
+
 function screenDraw(){
   mode = 'drawing';
   stopFx();
   clearDrawTimers();
+  brakeFn = null;
   const pool = [];
   for (let i=1; i<=cfg.guests; i++) if (!drawnNums.has(i)) pool.push(i);
   if (!pool.length) return screenDone();
@@ -2600,7 +2619,7 @@ function screenDraw(){
   cur.num = num; drawnNums.add(num);
   const str = pad(num);
 
-  // 复用亮奖那一屏已经在场上的老虎机，不重建 DOM
+  // 复用抽号那一屏已经在场上的老虎机，不重建 DOM
   const box = $('digits');
   if (!box) return isSolo() ? screenSolo() : screenSpin();   // 滚轮还没搭好，先把那一屏铺出来
   const reels = Array.from(box.querySelectorAll('.reel'));
@@ -2646,37 +2665,67 @@ function screenDraw(){
   spinRaf = requestAnimationFrame(tick);
   drawTimers.push(() => cancelAnimationFrame(spinRaf));
 
-  const msgs = ['首位相符的人请起立', '第二位不符的请坐下', '就是他了'];
-  const gap = isLastBatch() ? 1500 : 1000;
-  const brake = isLastBatch() ? 1500 : 1150;     // 刹车时长
+  const tempo = drawTempo();
+  const t0 = Date.now();
+  const state = [0, 0, 0];                            // 0 转着 / 1 刹车中 / 2 停稳
+  const doneT = [0, 0, 0], tgtK = [0, 0, 0];
+  let doneN = 0;
+  const pend = [];                                    // 还没执行的「停第 i 轮」
 
-  function stopReel(i){
-    spinning[i] = false;
-    const st = strips[i];
-    const tgt = targetY(ys[i], +str[i], 2);
-    st.classList.remove('fast');
-    st.style.transition = 'transform ' + brake + 'ms cubic-bezier(.16,.86,.27,1)';
-    st.style.transform = 'translateY(' + tgt.y + 'px)';
-    ys[i] = tgt.y;
-    const done = setTimeout(() => {
-      reels[i].classList.add('locked');
-      const hit = st.children[tgt.k];
-      if (hit) hit.classList.add('hit');
+  function settle(i){
+    state[i] = 2;
+    reels[i].classList.add('locked');
+    const hit = strips[i].children[tgtK[i]];
+    if (hit) hit.classList.add('hit');
+    if (++doneN === 3){                               // 三轮都停稳才报号（刹停时先后可能交错）
+      brakeFn = null;
+      mode = 'drawn';
       const dm = $('dm');
-      if (dm) dm.textContent = msgs[i];
-      if (i === 2){
-        mode = 'drawn';
-        if (dm) dm.innerHTML =
-          '请 <b style="color:var(--gold)">' + str + '</b> 号的朋友站起来';
-      }
-    }, brake);
-    drawTimers.push(() => clearTimeout(done));
+      if (dm) dm.innerHTML = '请 <b style="color:var(--gold)">' + str + '</b> 号的朋友站起来';
+    }
+  }
+
+  function stopReel(i, brake, turns){
+    if (state[i] === 2) return;
+    const st = strips[i];
+    const ease = 'transform ' + brake + 'ms cubic-bezier(.16,.86,.27,1)';
+    if (state[i] === 1){                              // 已在慢刹：换短刹，目标不变
+      clearTimeout(doneT[i]);                         // （抖 0.01px 让过渡从当前位置重新起算）
+      st.style.transition = ease;
+      st.style.transform = 'translateY(' + (ys[i] + 0.01) + 'px)';
+    } else {
+      state[i] = 1; spinning[i] = false;
+      const tgt = targetY(ys[i], +str[i], turns);
+      tgtK[i] = tgt.k; ys[i] = tgt.y;
+      st.classList.remove('fast');
+      st.style.transition = ease;
+      st.style.transform = 'translateY(' + tgt.y + 'px)';
+    }
+    doneT[i] = setTimeout(() => settle(i), brake);
+    const id = doneT[i];
+    drawTimers.push(() => clearTimeout(id));
   }
 
   [0,1,2].forEach(i => {
-    const t = setTimeout(() => stopReel(i), 650 + i * gap);
+    const t = setTimeout(() => stopReel(i, tempo.brake, tempo.turns), tempo.first + i * tempo.gap);
+    pend.push(t);
     drawTimers.push(() => clearTimeout(t));
   });
+
+  // 主持人油门：没停稳的滚轮按顺序立刻刹停（在慢刹的也换成短刹）。刚开转那一下（<450ms）不认，防手抖连按。
+  brakeFn = () => {
+    if (mode !== 'drawing' || Date.now() - t0 < 450) return;
+    pend.forEach(clearTimeout);
+    let k = 0;
+    for (let i = 0; i < 3; i++){
+      if (state[i] === 2) continue;
+      const d = (k++) * 120;
+      if (!d){ stopReel(i, 450, 1); continue; }
+      const t = setTimeout(() => stopReel(i, 450, 1), d);
+      drawTimers.push(() => clearTimeout(t));
+    }
+    brakeFn = null;
+  };
 }
 
 const REVEAL = {
@@ -3057,6 +3106,7 @@ function act(name){
   if (name === 'advance' || name === 'decide'){
     if (mode === 'intro')     return doShuffle();
     if (mode === 'prize')     return pressSpin(), releaseSpin();
+    if (mode === 'drawing')   return brakeNow();
     if (mode === 'drawn')     return isSolo() ? soloReveal() : screenPick();
     if (mode === 'pick')      return openCard(cur.sel);
     if (mode === 'reveal')    return nextPick();
@@ -3213,7 +3263,9 @@ function renderEditor(){
       '<span class="unit">号码池 001 ~ ' + pad(cfg.guests) + '</span></div>' +
     '<div class="fld"><label>翻牌倒计时</label>' +
       '<input class="inp num" type="number" min="0" max="60" value="' + cfg.pickSeconds + '" data-f="pickSeconds">' +
-      '<span class="unit">秒；填 0 = 不计时</span></div></div>';
+      '<span class="unit">秒；填 0 = 不计时</span></div>' +
+    '<div class="tip2">抽号节奏：每批第一位和最后一位走完整三停，中间的人快停，最后一批最慢。' +
+      '滚动中再按一次空格 / 翻页笔（或点一下画面）= 剩下的滚轮立刻刹停。</div></div>';
 
   // 奖品清单
   html += '<div class="sec"><h3>奖品清单　<span class="h3s">' + cfg.prizes.length +
