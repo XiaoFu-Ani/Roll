@@ -1406,6 +1406,9 @@
       0 24px 44px rgba(0,0,0,.6);
   }
   .card.pk.flipped .front{transition:box-shadow .45s ease-out}   /* 归位到格子里后光淡掉，不突跳 */
+  /* 不预告品质（cfg.tease 关）：抖动阶段牌背用中性的冷白光、抖幅中档；
+     品质光环 / 旋转光芒靠 data-r 触发，此时 data-r 还是 1，不会出现 */
+  .card.pk.charging.plain{--rc:#f1f3ff; --rcrgb:241,243,255; --pow:1.2; --amp:3.5px}
   .card.pk.homing{z-index:20; transform:none; transition:transform .56s cubic-bezier(.3,.9,.3,1)}
   /* 单件批次：奖品和滚轮左右并排。竖着摞会把标题和按钮挤出屏幕 */
   .soloRow{
@@ -1539,6 +1542,8 @@
   .bpi.st{color:var(--gold); border-color:rgba(255,201,60,.45); background:rgba(255,201,60,.09)}
   .bpi img{width:15px; height:15px; object-fit:contain; vertical-align:-3px}
 
+  .fld .sw{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink2); cursor:pointer; line-height:1.4}
+  .fld .sw input{accent-color:var(--gold); cursor:pointer; flex:none}
   .tip2{
     margin-top:9px; font-size:11.5px; line-height:1.75; color:var(--ink3);
     background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07);
@@ -1791,11 +1796,12 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 10-29 17:52';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 10-29 18:17';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
   pickSeconds: 15,          // 翻牌倒计时；归零自动翻高亮那张。填 0 = 不计时
+  tease: false,             // 抖动阶段就按真实品质抖和亮（翻面前的预告）；关 = 中性，翻面那一刻才见品质
   starRatio: 3,             // 「帮我排一版」时镇批之宝相对同批其余均价的目标倍数
   breakAfter: [],           // 哪几批发完后自动进休息页（存批次号）
   // 休息页：text 是常驻大字，clips 是一排视频入口（本地 mp4 / B 站 / 优酷）
@@ -1854,6 +1860,7 @@ function migrate(old){
     guests: old.guests || DEFAULT_CFG.guests,
     theme: old.theme || clone(DEFAULT_CFG.theme),
     pickSeconds: DEFAULT_CFG.pickSeconds,
+    tease: DEFAULT_CFG.tease,
     starRatio: DEFAULT_CFG.starRatio,
     breakAfter: [],
     breakScreen: fixBreak(old.breakScreen),
@@ -1897,6 +1904,7 @@ function fillCfg(c){
   });
   if (c.guests === undefined) c.guests = d.guests;
   if (c.pickSeconds === undefined) c.pickSeconds = d.pickSeconds;
+  c.tease = c.tease === undefined ? d.tease : !!c.tease;
   if (c.starRatio === undefined) c.starRatio = d.starRatio;
   if (!Array.isArray(c.breakAfter)) c.breakAfter = [];
   if (!c.breakScreen) c.breakScreen = clone(d.breakScreen);
@@ -2457,9 +2465,11 @@ function playReveal(el, d, r, bigHTML, subHTML){
   const t0 = setTimeout(() => {                          // 到位：开始抖
     if (el){
       el.classList.remove('lifting');
-      el.setAttribute('data-r', String(r));              // 抖动阶段就按真实品质抖和亮
-      const fx = el.querySelector('.fx');
-      if (fx) fx.outerHTML = cardFxHTML(r);
+      if (cfg.tease){                                    // 预告：抖动阶段就按真实品质抖和亮
+        el.setAttribute('data-r', String(r));
+        const fx = el.querySelector('.fx');
+        if (fx) fx.outerHTML = cardFxHTML(r);
+      } else el.classList.add('plain');                  // 不预告：中性暖白光，品质留到翻面那一刻
       el.classList.add('charging');
     }
     document.documentElement.style.setProperty('--chargeDur', T.charge + 'ms');
@@ -2468,7 +2478,12 @@ function playReveal(el, d, r, bigHTML, subHTML){
 
     const t1 = setTimeout(() => {                        // 抖到头：彩带 + 翻面
       if (el){
-        el.classList.remove('charging'); el.classList.add('showing');
+        el.classList.remove('charging', 'plain'); el.classList.add('showing');
+        if (!cfg.tease){
+          el.setAttribute('data-r', String(r));
+          const fx = el.querySelector('.fx');
+          if (fx) fx.outerHTML = cardFxHTML(r);
+        }
         void el.offsetWidth;
         el.classList.add('flipped');
         startConfetti(el, T.conf);
@@ -3355,6 +3370,9 @@ function renderEditor(){
     '<div class="fld"><label>翻牌倒计时</label>' +
       '<input class="inp num" type="number" min="0" max="60" value="' + cfg.pickSeconds + '" data-f="pickSeconds">' +
       '<span class="unit">秒；填 0 = 不计时</span></div>' +
+    '<div class="fld"><label>抖动时预告品质</label>' +
+      '<label class="sw"><input type="checkbox" data-f="tease"' + (cfg.tease ? ' checked' : '') + '>' +
+      '开：翻面前牌背就按真实品质抖和亮　关：抖动中性，翻面那一刻才见品质</label></div>' +
     '<div class="tip2">抽号节奏：每批第一位和最后一位走完整三停，中间的人快停，最后一批最慢。' +
       '滚动中再按一次空格 / 翻页笔（或点一下画面）= 剩下的滚轮立刻刹停。</div></div>';
 
@@ -3444,6 +3462,7 @@ function onEdInput(e){
 
   if (el.dataset.f !== undefined){
     const f = el.dataset.f;
+    if (el.type === 'checkbox'){ cfg[f] = !!el.checked; saveCfg(); return; }
     const v = f === 'starRatio' ? parseFloat(el.value) : parseInt(el.value, 10);
     if (!isNaN(v)) cfg[f] = v;
     saveCfg();
