@@ -1,0 +1,2 @@
+编辑器「音效」调音台的内置备选素材，来源同 art/sfx/CREDITS.txt（Kenney CC0、400 Sounds Pack 免费商用、OpenGameArt CC0）。
+key 前缀：o=OpenGameArt，c=400 Sounds Pack，k=Kenney，w=OpenGameArt 风声。

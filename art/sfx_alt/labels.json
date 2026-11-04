@@ -1,0 +1,450 @@
+{
+"o1_pop1": [
+"啵 / 气泡",
+"pop1.ogg"
+],
+"o1_pop3": [
+"啵 / 气泡",
+"pop3.ogg"
+],
+"o1_pop5": [
+"啵 / 气泡",
+"pop5.ogg"
+],
+"o1_pop8": [
+"啵 / 气泡",
+"pop8.ogg"
+],
+"o1_pop9": [
+"啵 / 气泡",
+"pop9.ogg"
+],
+"o1_pop10": [
+"啵 / 气泡",
+"pop10.ogg"
+],
+"o2_pop1": [
+"啵 / 气泡",
+"pop1.wav"
+],
+"o2_pop3": [
+"啵 / 气泡",
+"pop3.wav"
+],
+"o2_pop4": [
+"啵 / 气泡",
+"pop4.wav"
+],
+"o2_pop8": [
+"啵 / 气泡",
+"pop8.wav"
+],
+"o2_pop9": [
+"啵 / 气泡",
+"pop9.wav"
+],
+"o3_p_2": [
+"啵 / 气泡",
+"p_2.ogg"
+],
+"o3_p_4": [
+"啵 / 气泡",
+"p_4.ogg"
+],
+"o3_p_5": [
+"啵 / 气泡",
+"p_5.ogg"
+],
+"o4_bubbles_single1": [
+"啵 / 气泡",
+"bubbles-single1.wav"
+],
+"o4_bubbles_single2": [
+"啵 / 气泡",
+"bubbles-single2.wav"
+],
+"o4_bubbles_single3": [
+"啵 / 气泡",
+"bubbles-single3.wav"
+],
+"o5_balloon_pop": [
+"啵 / 气泡",
+"balloon_pop.ogg"
+],
+"o6_slidepop": [
+"啵 / 气泡",
+"slidepop.mp3"
+],
+"c1_pop_1": [
+"啵 / 气泡",
+"pop_1.wav"
+],
+"c1_pop_2": [
+"啵 / 气泡",
+"pop_2.wav"
+],
+"c1_pop_3": [
+"啵 / 气泡",
+"pop_3.wav"
+],
+"c1_pop_4": [
+"啵 / 气泡",
+"pop_4.wav"
+],
+"c2_select_2": [
+"界面 / 提示",
+"select_2.wav"
+],
+"c2_toggle_on": [
+"界面 / 提示",
+"toggle_on.wav"
+],
+"c2_toggle_off": [
+"界面 / 提示",
+"toggle_off.wav"
+],
+"c2_click_double_on": [
+"界面 / 提示",
+"click_double_on.wav"
+],
+"o7_blipUI1": [
+"界面 / 提示",
+"blipUI1.wav"
+],
+"o7_blipUI2": [
+"界面 / 提示",
+"blipUI2.wav"
+],
+"o7_blipUI4": [
+"界面 / 提示",
+"blipUI4.wav"
+],
+"o8_kalimba": [
+"界面 / 提示",
+"kalimba.wav"
+],
+"o9_complete_0": [
+"界面 / 提示",
+"complete_0.wav"
+],
+"k1_drop_002": [
+"界面 / 提示",
+"drop_002.ogg"
+],
+"k1_drop_004": [
+"界面 / 提示",
+"drop_004.ogg"
+],
+"k1_pluck_001": [
+"界面 / 提示",
+"pluck_001.ogg"
+],
+"k1_pluck_002": [
+"界面 / 提示",
+"pluck_002.ogg"
+],
+"k1_bong_001": [
+"界面 / 提示",
+"bong_001.ogg"
+],
+"k1_confirmation_001": [
+"界面 / 提示",
+"confirmation_001.ogg"
+],
+"k1_confirmation_002": [
+"界面 / 提示",
+"confirmation_002.ogg"
+],
+"k1_confirmation_003": [
+"界面 / 提示",
+"confirmation_003.ogg"
+],
+"k1_confirmation_004": [
+"界面 / 提示",
+"confirmation_004.ogg"
+],
+"k1_glass_001": [
+"界面 / 提示",
+"glass_001.ogg"
+],
+"k1_glass_004": [
+"界面 / 提示",
+"glass_004.ogg"
+],
+"k1_tick_001": [
+"界面 / 提示",
+"tick_001.ogg"
+],
+"k1_tick_004": [
+"界面 / 提示",
+"tick_004.ogg"
+],
+"k1_select_001": [
+"界面 / 提示",
+"select_001.ogg"
+],
+"k2_switch1": [
+"界面 / 提示",
+"switch1.ogg"
+],
+"k2_switch17": [
+"界面 / 提示",
+"switch17.ogg"
+],
+"k2_rollover1": [
+"界面 / 提示",
+"rollover1.ogg"
+],
+"k2_mouseclick1": [
+"界面 / 提示",
+"mouseclick1.ogg"
+],
+"k3_impactWood_light_000": [
+"木 / 纸 / 桌面",
+"impactWood_light_000.ogg"
+],
+"k3_impactWood_medium_000": [
+"木 / 纸 / 桌面",
+"impactWood_medium_000.ogg"
+],
+"k3_impactWood_heavy_000": [
+"木 / 纸 / 桌面",
+"impactWood_heavy_000.ogg"
+],
+"k3_impactPlank_medium_000": [
+"木 / 纸 / 桌面",
+"impactPlank_medium_000.ogg"
+],
+"k3_impactSoft_medium_000": [
+"木 / 纸 / 桌面",
+"impactSoft_medium_000.ogg"
+],
+"k3_impactSoft_heavy_000": [
+"木 / 纸 / 桌面",
+"impactSoft_heavy_000.ogg"
+],
+"k3_impactGeneric_light_000": [
+"木 / 纸 / 桌面",
+"impactGeneric_light_000.ogg"
+],
+"c3_wood_small_drop": [
+"木 / 纸 / 桌面",
+"wood_small_drop.wav"
+],
+"c3_wood_small_hollow": [
+"木 / 纸 / 桌面",
+"wood_small_hollow.wav"
+],
+"c3_wood_small_pickup": [
+"木 / 纸 / 桌面",
+"wood_small_pickup.wav"
+],
+"c3_cardboard_hit": [
+"木 / 纸 / 桌面",
+"cardboard_hit.wav"
+],
+"c3_paper_move": [
+"木 / 纸 / 桌面",
+"paper_move.wav"
+],
+"c3_paper_sort": [
+"木 / 纸 / 桌面",
+"paper_sort.wav"
+],
+"c4_subtle_knock": [
+"木 / 纸 / 桌面",
+"subtle_knock.wav"
+],
+"c4_snap": [
+"木 / 纸 / 桌面",
+"snap.wav"
+],
+"c4_whoosh_1": [
+"木 / 纸 / 桌面",
+"whoosh_1.wav"
+],
+"c4_finger_click": [
+"木 / 纸 / 桌面",
+"finger_click.wav"
+],
+"c5_page_turn": [
+"木 / 纸 / 桌面",
+"page_turn.wav"
+],
+"c5_book_close": [
+"木 / 纸 / 桌面",
+"book_close.wav"
+],
+"k4_card_place_1": [
+"纸牌 / 骰子",
+"card-place-1.ogg"
+],
+"k4_card_place_2": [
+"纸牌 / 骰子",
+"card-place-2.ogg"
+],
+"k4_card_place_3": [
+"纸牌 / 骰子",
+"card-place-3.ogg"
+],
+"k4_card_place_4": [
+"纸牌 / 骰子",
+"card-place-4.ogg"
+],
+"k4_card_slide_1": [
+"纸牌 / 骰子",
+"card-slide-1.ogg"
+],
+"k4_card_slide_2": [
+"纸牌 / 骰子",
+"card-slide-2.ogg"
+],
+"k4_card_slide_4": [
+"纸牌 / 骰子",
+"card-slide-4.ogg"
+],
+"k4_card_slide_6": [
+"纸牌 / 骰子",
+"card-slide-6.ogg"
+],
+"k4_card_shove_1": [
+"纸牌 / 骰子",
+"card-shove-1.ogg"
+],
+"k4_card_fan_1": [
+"纸牌 / 骰子",
+"card-fan-1.ogg"
+],
+"k4_card_shuffle": [
+"纸牌 / 骰子",
+"card-shuffle.ogg"
+],
+"k4_dice_shake_1": [
+"纸牌 / 骰子",
+"dice-shake-1.ogg"
+],
+"k4_chips_stack_1": [
+"纸牌 / 骰子",
+"chips-stack-1.ogg"
+],
+"c6_card_draw_1": [
+"纸牌 / 骰子",
+"card_draw_1.wav"
+],
+"c6_card_draw_2": [
+"纸牌 / 骰子",
+"card_draw_2.wav"
+],
+"c6_card_draw_3": [
+"纸牌 / 骰子",
+"card_draw_3.wav"
+],
+"c6_card_fan": [
+"纸牌 / 骰子",
+"card_fan.wav"
+],
+"c6_card_fan_2": [
+"纸牌 / 骰子",
+"card_fan_2.wav"
+],
+"c6_dice_shake_2": [
+"纸牌 / 骰子",
+"dice_shake_2.wav"
+],
+"c6_dice_shake_3": [
+"纸牌 / 骰子",
+"dice_shake_3.wav"
+],
+"c6_dice_shake_4": [
+"纸牌 / 骰子",
+"dice_shake_4.wav"
+],
+"c6_dice_roll_1": [
+"纸牌 / 骰子",
+"dice_roll_1.wav"
+],
+"c6_chips_stack": [
+"纸牌 / 骰子",
+"chips_stack.wav"
+],
+"c7_vibraphone_chime_quick": [
+"乐句",
+"vibraphone_chime_quick.wav"
+],
+"c7_vibraphone_chime_positive": [
+"乐句",
+"vibraphone_chime_positive.wav"
+],
+"c7_vibraphone_positive_long": [
+"乐句",
+"vibraphone_positive_long.wav"
+],
+"c7_vibraphone_level_complete": [
+"乐句",
+"vibraphone_level_complete.wav"
+],
+"c7_music_box_chime_quick": [
+"乐句",
+"music_box_chime_quick.wav"
+],
+"c7_music_box_chime_positive": [
+"乐句",
+"music_box_chime_positive.wav"
+],
+"c7_music_box_positive_long": [
+"乐句",
+"music_box_positive_long.wav"
+],
+"c7_grand_piano_chime_quick": [
+"乐句",
+"grand_piano_chime_quick.wav"
+],
+"c7_grand_piano_chime_positive": [
+"乐句",
+"grand_piano_chime_positive.wav"
+],
+"c7_grand_piano_positive_long": [
+"乐句",
+"grand_piano_positive_long.wav"
+],
+"c7_xylophone_chime_quick": [
+"乐句",
+"xylophone_chime_quick.wav"
+],
+"c7_xylophone_chime_positive": [
+"乐句",
+"xylophone_chime_positive.wav"
+],
+"c7_synth_bass_chime_quick": [
+"乐句",
+"synth_bass_chime_quick.wav"
+],
+"c7_synth_bass_chime_positive": [
+"乐句",
+"synth_bass_chime_positive.wav"
+],
+"k5_jingles_PIZZI03": [
+"乐句",
+"jingles_PIZZI03.ogg"
+],
+"k5_jingles_PIZZI06": [
+"乐句",
+"jingles_PIZZI06.ogg"
+],
+"k5_jingles_PIZZI07": [
+"乐句",
+"jingles_PIZZI07.ogg"
+],
+"k5_jingles_PIZZI16": [
+"乐句",
+"jingles_PIZZI16.ogg"
+],
+"k6_jingles_STEEL07": [
+"乐句",
+"jingles_STEEL07.ogg"
+],
+"k7_jingles_HIT15": [
+"乐句",
+"jingles_HIT15.ogg"
+]
+}
