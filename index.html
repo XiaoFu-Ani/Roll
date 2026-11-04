@@ -1548,6 +1548,7 @@
   .fld .sw{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink2); cursor:pointer; line-height:1.4}
   .fld .sw input{accent-color:var(--gold); cursor:pointer; flex:none}
   .inp.rng{width:170px; padding:0; height:24px; accent-color:var(--gold); background:none; box-shadow:none; border:0}
+  .fld .sel2{width:auto; min-width:170px; padding:6px 10px; margin-right:8px}
   .sfxRow{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 6px}
   .btn.mini2{font-size:12px; padding:5px 9px; box-shadow:0 2px 0 var(--ink-stroke)}
   .tip2{
@@ -1753,6 +1754,7 @@
 <body>
 
 <div id="bgFx"></div>
+<audio id="bgm" loop preload="auto"></audio>
 <div id="roundAura"></div>
 <div id="vig"></div>
 <div id="flash"></div>
@@ -1802,7 +1804,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-04 12:00';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-04 13:30';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -1810,6 +1812,8 @@ const DEFAULT_CFG = {
   tease: false,             // 抖动阶段就按真实品质抖和亮（翻面前的预告）；关 = 中性，翻面那一刻才见品质
   volume: 0.8,              // 音效总音量 0~1
   mute: false,              // 静音（M 键）
+  bgm: 'sherwood',          // 背景音乐曲目（art/bgm/<名>.mp3；'' = 不放）
+  bgmVolume: 0.3,           // 背景音乐音量 0~1
   starRatio: 3,             // 「帮我排一版」时镇批之宝相对同批其余均价的目标倍数
   breakAfter: [],           // 哪几批发完后自动进休息页（存批次号）
   // 休息页：text 是常驻大字，clips 是一排视频入口（本地 mp4 / B 站 / 优酷）
@@ -1871,6 +1875,8 @@ function migrate(old){
     tease: DEFAULT_CFG.tease,
     volume: DEFAULT_CFG.volume,
     mute: false,
+    bgm: DEFAULT_CFG.bgm,
+    bgmVolume: DEFAULT_CFG.bgmVolume,
     starRatio: DEFAULT_CFG.starRatio,
     breakAfter: [],
     breakScreen: fixBreak(old.breakScreen),
@@ -1917,6 +1923,8 @@ function fillCfg(c){
   c.tease = c.tease === undefined ? d.tease : !!c.tease;
   c.volume = (c.volume === undefined || isNaN(+c.volume)) ? d.volume : Math.max(0, Math.min(1, +c.volume));
   c.mute = !!c.mute;
+  if (typeof c.bgm !== 'string') c.bgm = d.bgm;
+  c.bgmVolume = (c.bgmVolume === undefined || isNaN(+c.bgmVolume)) ? d.bgmVolume : Math.max(0, Math.min(1, +c.bgmVolume));
   if (c.starRatio === undefined) c.starRatio = d.starRatio;
   if (!Array.isArray(c.breakAfter)) c.breakAfter = [];
   if (!c.breakScreen) c.breakScreen = clone(d.breakScreen);
@@ -2216,6 +2224,7 @@ function sfxInit(){
 function sfxUnlock(){
   sfxInit();
   if (ac && ac.state === 'suspended'){ try{ ac.resume().catch(() => {}); }catch(e){} }
+  if (!bgmWant){ bgmWant = true; bgmPlay(); }
 }
 function sfxVol(){ const v = +cfg.volume; return isNaN(v) ? 0.8 : Math.max(0, Math.min(1, v)); }
 function sfxApplyVolume(){
@@ -2304,6 +2313,47 @@ function sfxTry(name){
   sfx(name, { direct: true });
 }
 
+/* ---------- 背景音乐 ----------
+   曲子是 art/bgm/ 下的独立 mp3，用 <audio> 循环放：file:// 下也能放，想换曲子把文件丢进目录就行，不用重新发布。
+   不走 WebAudio：file:// 下 createMediaElementSource 会因为跨源直接静音。音量用 audio.volume 调（iOS 不认，只能开关）。
+   揭晓时压低到 1/3（bgmDuck），休息页放视频时暂停，M 键静音一起管。 */
+const BGM_TRACKS = [['', '不放'], ['sherwood', 'Sherwood · 轻松'], ['shineblitz', 'Shine Blitz · 有劲'],
+                    ['happyclappy', 'Happy Clappy · 钢琴'], ['custom', '自定义 custom.mp3']];
+let bgmWant = false, bgmDucked = false, bgmTween = 0;
+function bgmVol(){ const v = +cfg.bgmVolume; return isNaN(v) ? 0.3 : Math.max(0, Math.min(1, v)); }
+function bgmTarget(){ return (cfg.mute || !cfg.bgm) ? 0 : bgmVol() * (bgmDucked ? 0.33 : 1); }
+function bgmApply(fade){
+  const a = $('bgm'); if (!a) return;
+  const to = bgmTarget();
+  clearInterval(bgmTween);
+  if (!fade){ try{ a.volume = to; }catch(e){} return; }
+  const from = a.volume, t0 = Date.now();
+  bgmTween = setInterval(() => {
+    const k = Math.min(1, (Date.now() - t0) / 450);
+    try{ a.volume = from + (to - from) * k; }catch(e){}
+    if (k >= 1) clearInterval(bgmTween);
+  }, 40);
+}
+function bgmLoad(){
+  const a = $('bgm'); if (!a) return;
+  const src = cfg.bgm ? 'art/bgm/' + cfg.bgm + '.mp3' : '';
+  if (a.dataset.src === src) return;
+  a.dataset.src = src;
+  if (!src){ a.pause(); a.removeAttribute('src'); return; }
+  a.src = src;
+  bgmApply(false);
+  bgmPlay();
+}
+function bgmPlay(){
+  const a = $('bgm');
+  if (!a || !cfg.bgm || !bgmWant) return;     // bgmWant：有过一次交互之后才允许放（浏览器的自动播放限制）
+  if (breakClip >= 0) return;                  // 休息页正在放视频
+  bgmApply(false);
+  try{ const p = a.play(); if (p && p.catch) p.catch(() => {}); }catch(e){}
+}
+function bgmPause(){ const a = $('bgm'); if (a) a.pause(); }
+function bgmDuck(on){ if (bgmDucked === !!on) return; bgmDucked = !!on; bgmApply(true); }
+
 /* ---------- 换舞台内容 ----------
    统一的切屏过渡：旧画面淡出并轻微下沉（.out，.18s）→ 换内容 → 新画面从上方淡入（.24s），背景图案不动。
    以前是整块 innerHTML 直接换，用户反馈像跳切（2026-10-29）。舞台还空着的第一屏直接铺、不淡入。
@@ -2316,6 +2366,7 @@ function setStage(html, after){
     stageSwap = 0;
     $stage.innerHTML = html;
     $stage.classList.remove('out');
+    bgmDuck(false);                            // 展示没放完就跳走的话，这里把音乐放回来
     if (fade){                                   // 从「上方 + 透明」过渡到常态
       $stage.style.transition = 'none';
       $stage.style.opacity = '0';
@@ -2613,6 +2664,7 @@ function goHome(el){
   const t = setTimeout(() => {
     el.classList.remove('homing');
     ['--dx', '--dy', '--zs', '--zsm'].forEach(k => el.style.removeProperty(k));
+    bgmDuck(false);
   }, HOME_DUR + 60);
   drawTimers.push(() => clearTimeout(t));
 }
@@ -2639,6 +2691,7 @@ function playReveal(el, d, r, bigHTML, subHTML){
     }
     document.documentElement.style.setProperty('--chargeDur', T.charge + 'ms');
     sfxRumble(T.charge / 1000);
+    bgmDuck(true);
     const vig = $('vig');
     if (vig){ vig.classList.remove('on'); void vig.offsetWidth; vig.classList.add('on'); }
 
@@ -3317,6 +3370,7 @@ function toggleBreak(){
     el.innerHTML = '';                 // 清空 = 停止播放，声音不会留在后台
     el.classList.add('hide');
     breakClip = -1;
+    bgmPlay();                         // 视频停了，音乐接回来
     if (autoBreak){ autoBreak = false; enterBatch(); }   // 自动开的，回来接着抽
     return;
   }
@@ -3330,9 +3384,9 @@ $('breakLayer').addEventListener('click', e => {
   const t = e.target;
   if (!t || !t.closest) return;
   if (t.closest('[data-bkclose]')) return toggleBreak();
-  if (t.closest('[data-bkstop]')){ breakClip = -1; return renderBreak(); }
+  if (t.closest('[data-bkstop]')){ breakClip = -1; bgmPlay(); return renderBreak(); }
   const card = t.closest('[data-clip]');
-  if (card){ breakClip = +card.dataset.clip; renderBreak(); }
+  if (card){ breakClip = +card.dataset.clip; bgmPause(); renderBreak(); }
 });
 
 /* 编辑器里的休息页设置：待机文字 + 视频清单 */
@@ -3374,7 +3428,7 @@ function breakSectionHTML(){
 
 /* ================= 输入 ================= */
 function act(name){
-  if (name === 'mute'){ cfg.mute = !cfg.mute; saveCfg(); sfxApplyVolume(); renderStatus(); return; }
+  if (name === 'mute'){ cfg.mute = !cfg.mute; saveCfg(); sfxApplyVolume(); bgmApply(false); renderStatus(); return; }
   if (name === 'break'){ toggleBreak(); return; }
   if (name === 'rules'){ toggleRule(); return; }
   if (name === 'settings'){ toggleEditor(); return; }
@@ -3566,8 +3620,13 @@ function renderEditor(){
     '<div class="fld"><label>静音</label>' +
       '<label class="sw"><input type="checkbox" data-f="mute"' + (cfg.mute ? ' checked' : '') + '>' +
       '全场不出声（现场没接音响时勾上）</label></div>' +
+    '<div class="fld"><label>背景音乐</label>' +
+      '<select class="inp sel2" data-f="bgm">' + BGM_TRACKS.map(t => '<option value="' + t[0] + '"' + (cfg.bgm === t[0] ? ' selected' : '') + '>' + t[1] + '</option>').join('') + '</select>' +
+      '<input class="inp rng" type="range" min="0" max="1" step="0.05" value="' + bgmVol() + '" data-f="bgmVolume">' +
+      '<span class="unit">' + Math.round(bgmVol() * 100) + '%</span></div>' +
     '<div class="sfxRow">' + SFX_TRY.map(p => '<button class="btn mini2" data-act="sfxTry" data-sfx="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>' +
-    '<div class="tip2">点一下试听。素材来自 Kenney（CC0）；想换哪条，说出时刻和想要的感觉，重新发布即可。</div></div>';
+    '<div class="tip2">点一下试听。素材来自 Kenney（CC0）；想换哪条，说出时刻和想要的感觉，重新发布即可。<br>' +
+      '背景音乐：揭晓时自动压低、休息页放视频时暂停。想放自己的曲子，mp3 命名为 custom.mp3 放进 art/bgm，选「自定义」。</div></div>';
 
   // 奖品清单
   html += '<div class="sec"><h3>奖品清单　<span class="h3s">' + cfg.prizes.length +
@@ -3655,13 +3714,19 @@ function onEdInput(e){
 
   if (el.dataset.f !== undefined){
     const f = el.dataset.f;
+    if (el.tagName === 'SELECT'){ cfg[f] = el.value; saveCfg(); if (f === 'bgm') bgmLoad(); return; }
     if (el.type === 'checkbox'){
       cfg[f] = !!el.checked; saveCfg();
-      if (f === 'mute'){ sfxApplyVolume(); renderStatus(); }
+      if (f === 'mute'){ sfxApplyVolume(); bgmApply(false); renderStatus(); }
       return;
     }
-    const v = (f === 'starRatio' || f === 'volume') ? parseFloat(el.value) : parseInt(el.value, 10);
+    const v = (f === 'starRatio' || f === 'volume' || f === 'bgmVolume') ? parseFloat(el.value) : parseInt(el.value, 10);
     if (!isNaN(v)) cfg[f] = v;
+    if (f === 'bgmVolume'){
+      bgmApply(false);
+      const u = el.parentElement && el.parentElement.querySelector('.unit');
+      if (u) u.textContent = Math.round(bgmVol() * 100) + '%';
+    }
     if (f === 'volume'){
       sfxApplyVolume();
       const u = el.parentElement && el.parentElement.querySelector('.unit');
@@ -4250,6 +4315,7 @@ if (pendingSave) showResume(pendingSave);
 let gearTimer = 0;
 $('gear').addEventListener('click', () => toggleEditor());
 sfxInit();                                   // 先建好、先解码；真正出声等第一次交互
+bgmLoad();                                   // 曲子先缓冲好，同样等第一次交互才放
 addEventListener('mousemove', () => {
   const g = $('gear');
   g.classList.add('awake');

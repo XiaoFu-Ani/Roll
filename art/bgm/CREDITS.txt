@@ -1,0 +1,5 @@
+背景音乐均为 CC0（公共领域），来自 OpenGameArt：
+  sherwood.mp3 <- Sherwood — https://opengameart.org/content/sherwood
+  shineblitz.mp3 <- Shine Blitz — https://opengameart.org/content/shine-blitz
+  happyclappy.mp3 <- Happy Clappy Loop (OwlishMedia) — https://opengameart.org/content/happy-clappy-loop
+统一响度 -18 LUFS。想换自己的曲子：mp3 命名为 custom.mp3 放在这个目录，编辑器里选「自定义」。
