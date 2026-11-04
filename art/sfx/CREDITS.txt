@@ -13,8 +13,8 @@
   sel.mp3 <- kenney_ui-audio\Audio\rollover1.ogg
   lift.mp3 <- kenney_casino-audio\Audio\card-slide-1.ogg
   flip.mp3 <- kenney_casino-audio\Audio\card-slide-4.ogg
-  hit1.mp3 <- kenney_interface-sounds\Audio\confirmation_002.ogg
-  hit3.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI04.ogg
-  hit5.mp3 <- kenney_music-jingles\Audio\Hit jingles\jingles_HIT15.ogg
-  claim.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI07.ogg
+  hit1.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI06.ogg + kenney_impact-sounds\Audio\impactWood_light_000.ogg
+  hit3.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI03.ogg + kenney_impact-sounds\Audio\impactWood_heavy_000.ogg
+  hit5.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI07.ogg + kenney_impact-sounds\Audio\impactWood_heavy_002.ogg + kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
+  claim.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI12.ogg
   done.mp3 <- kenney_music-jingles\Audio\Steel jingles\jingles_STEEL07.ogg
