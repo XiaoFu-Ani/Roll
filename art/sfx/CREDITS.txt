@@ -1,19 +1,19 @@
 音效素材来源（均允许商用、无需署名）：
   Kenney（CC0，https://kenney.nl）：Casino Audio / Interface Sounds / UI Audio / Impact Sounds
   400 Sounds Pack（https://ci.itch.io/400-sounds-pack，100% free for commercial use）：颤音琴 / 木琴 / 钢琴乐句、骰子、桌面敲击、纸牌扇动、掌声
-  wind whoosh loop（OpenGameArt，CC0）：风声循环
+  wind whoosh loop / Pop sounds / Pop effect sounds / Bubble Sound Effects / Kalimba Two-Notes（OpenGameArt，CC0）
 构建时内嵌进 index.html。对应关系：
   place.mp3 <- dl\x\kenney_casino-audio\Audio\card-place-2.ogg
   shuffle.mp3 <- dl\x\kenney_casino-audio\Audio\card-shuffle.ogg
-  lever.mp3 <- dl\x\kenney_ui-audio\Audio\switch1.ogg
-  tick.mp3 <- dl\x\kenney_interface-sounds\Audio\tick_001.ogg
+  lever.mp3 <- dl\oga\bubble-sound-effects\bubbles-single2.wav
+  tick.mp3 <- dl\oga\pop-effect-sounds\p_4.ogg
   stop.mp3 <- dl\x\kenney_impact-sounds\Audio\impactWood_light_000.ogg
-  cd.mp3 <- dl\x\kenney_interface-sounds\Audio\tick_004.ogg
-  sel.mp3 <- dl\x\kenney_ui-audio\Audio\rollover1.ogg
+  cd.mp3 <- dl\oga\pop-sounds\pop10.ogg
+  sel.mp3 <- dl\oga\pop-sounds-0\pop4.wav
   lift.mp3 <- dl\x\kenney_casino-audio\Audio\card-slide-1.ogg
   flip.mp3 <- dl\x\kenney_casino-audio\Audio\card-slide-4.ogg
-  pop.mp3 <- dl\itch\ci400\Match Three\match_xylophone_1.wav
-  ding.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_chime_quick.wav
+  pop.mp3 <- dl\oga\pop-sounds-0\pop8.wav + dl\itch\ci400\Match Three\match_xylophone_1.wav
+  ding.mp3 <- dl\oga\kalimba-two-notes\kalimba.wav
   hit1.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_chime_positive.wav + dl\itch\ci400\Other\subtle_knock.wav
   hit3.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_positive_long.wav + dl\itch\ci400\Other\subtle_knock.wav + dl\x\kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
   hit5.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_level_complete.wav + dl\itch\ci400\Other\subtle_knock.wav + dl\x\kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
