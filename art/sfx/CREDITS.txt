@@ -13,7 +13,7 @@
   lift.mp3 <- dl\x\kenney_casino-audio\Audio\card-slide-1.ogg
   flip.mp3 <- dl\x\kenney_casino-audio\Audio\card-slide-4.ogg
   pop.mp3 <- dl\oga\pop-sounds-0\pop8.wav + dl\itch\ci400\Match Three\match_xylophone_1.wav
-  ding.mp3 <- dl\oga\kalimba-two-notes\kalimba.wav
+  ding.mp3 <- dl\itch\ci400\UI\pop_1.wav
   hit1.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_chime_positive.wav + dl\itch\ci400\Other\subtle_knock.wav
   hit3.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_positive_long.wav + dl\itch\ci400\Other\subtle_knock.wav + dl\x\kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
   hit5.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_level_complete.wav + dl\itch\ci400\Other\subtle_knock.wav + dl\x\kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
