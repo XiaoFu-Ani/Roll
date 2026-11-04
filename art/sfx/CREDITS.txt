@@ -1,0 +1,20 @@
+音效素材均为 CC0（公共领域），来自 Kenney（https://kenney.nl）：
+  Casino Audio / Interface Sounds / UI Audio / Impact Sounds / Music Jingles
+构建时内嵌进 index.html；抖动鼓滚和彩带礼炮为页面内合成。
+对应关系：
+  pop.mp3 <- kenney_interface-sounds\Audio\pluck_002.ogg
+  place.mp3 <- kenney_casino-audio\Audio\card-place-2.ogg
+  shuffle.mp3 <- kenney_casino-audio\Audio\card-shuffle.ogg
+  lever.mp3 <- kenney_ui-audio\Audio\switch1.ogg
+  tick.mp3 <- kenney_interface-sounds\Audio\tick_001.ogg
+  stop.mp3 <- kenney_impact-sounds\Audio\impactWood_light_000.ogg
+  ding.mp3 <- kenney_interface-sounds\Audio\confirmation_001.ogg
+  cd.mp3 <- kenney_interface-sounds\Audio\tick_004.ogg
+  sel.mp3 <- kenney_ui-audio\Audio\rollover1.ogg
+  lift.mp3 <- kenney_casino-audio\Audio\card-slide-1.ogg
+  flip.mp3 <- kenney_casino-audio\Audio\card-slide-4.ogg
+  hit1.mp3 <- kenney_interface-sounds\Audio\confirmation_002.ogg
+  hit3.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI04.ogg
+  hit5.mp3 <- kenney_music-jingles\Audio\Hit jingles\jingles_HIT15.ogg
+  claim.mp3 <- kenney_music-jingles\Audio\Pizzicato jingles\jingles_PIZZI07.ogg
+  done.mp3 <- kenney_music-jingles\Audio\Steel jingles\jingles_STEEL07.ogg
