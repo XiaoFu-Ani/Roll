@@ -1755,6 +1755,20 @@
     background:var(--panel2); color:var(--ink2); border:1px solid var(--line); border-radius:8px; padding:8px;
     word-break:break-all; resize:vertical;
   }
+
+  /* 顶部「云端有新配置」提醒条：不挡操作，手机上可换行 */
+  #cloudBar{
+    position:fixed; left:50%; top:14px; transform:translateX(-50%); z-index:940;
+    display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; justify-content:center;
+    max-width:min(760px, 94vw); padding:10px 16px; border-radius:14px;
+    background:var(--panel); border:1px solid var(--gold); box-shadow:0 10px 40px rgba(0,0,0,.45);
+    font-size:13.5px; color:var(--ink2);
+  }
+  #cloudBar.hide{display:none}
+  .cbT{font-weight:800; color:var(--gold); white-space:nowrap}
+  .cbM{flex:1; min-width:140px; line-height:1.5}
+  .cbA{display:flex; gap:8px; flex-wrap:wrap}
+  .cbA .btn{padding:7px 12px; font-size:13px}
 </style>
 
 <body>
@@ -1764,6 +1778,7 @@
 <div id="roundAura"></div>
 <div id="vig"></div>
 <div id="flash"></div>
+<div id="cloudBar" class="hide"></div>
 
 <button id="gear" title="设置（Ctrl+E）">⚙</button>
 
@@ -1811,7 +1826,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-05 11:31';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-05 18:55';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -4088,7 +4103,8 @@ $('fileImport').addEventListener('change', e => {
    每次上传 = 一次 git 提交，备注就是版本说明；拉取时列最近 20 个版本任选。
    上传前先比对云端当前版本和本机最后同步到的版本，别人在那之后改过就先问再覆盖。 */
 const CLOUD_KEY = 'lottery.cloud.v1';
-const CLOUD_DEF = { repo:'XiaoFu-Ani/Roll-config', pass:'', name:'', branch:'main', path:'config.json', sha:'', commit:'', at:0 };
+const CLOUD_DEF = { repo:'XiaoFu-Ani/Roll-config', pass:'', name:'', branch:'main', path:'config.json', sha:'', commit:'', at:0,
+                    auto:true, skip:'' };   // auto：打开页面时自动检查云端；skip：点过「不再提醒」的那个版本
 const CLOUD_LOCK = 'v1.3lS5xa4FTcz5DbQgXf22EA.kuBTA8SWS11xf1ES.vrgOGuUM_uaHmvBMRy2sALVzEwbygUq8qP0Cr2Wrhr-qyz25SS2lCkJisOXnXOqXqb9a8V7ai1vL_Kjg0Rn8gqztzno03wvg5jaqwcTweVk_CsFCTbQg211Bf3W11N2DMkG81RT9OGUShHMdcQ';   // 构建时从 lottery-config/cloud.key 嵌入：用小组口令加密过的 token；没有就是空串
 const LOCK_ITER = 600000;
 let tokenCache = { key:'', token:'' };
@@ -4130,6 +4146,9 @@ function cloudSectionHTML(){
       '<input class="inp" data-cf="name" value="' + esc(cloud.name) + '" placeholder="上传记录里显示这个名字" maxlength="24" style="max-width:200px"></div>' +
     '<div class="cloudRow"><label>上传备注</label>' +
       '<input class="inp" id="cloudNote" placeholder="这版改了什么，可不填" maxlength="80"></div>' +
+    '<div class="cloudRow"><label>自动检查</label>' +
+      '<label class="sw"><input type="checkbox" data-cf="auto"' + (cloud.auto === false ? '' : ' checked') + '>' +
+      '打开页面时去云端看一眼，有新版本就在顶上提醒；只提醒不自动换</label></div>' +
     '<div class="prowFoot">' +
       '<button class="btn main" data-act="cloudUp">上传到云端</button>' +
       '<button class="btn" data-act="cloudDown">从云端拉取…</button>' +
@@ -4166,7 +4185,9 @@ function cloudSyncRefresh(){ const e = $('cloudSync'); if (e) e.textContent = '�
 $('edBody').addEventListener('input', e => {
   const el = e.target;
   if (!el || !el.dataset || el.dataset.cf === undefined) return;
-  const k = el.dataset.cf, v = el.value.trim();
+  const k = el.dataset.cf;
+  if (el.type === 'checkbox'){ cloud[k] = el.checked; saveCloud(); return; }
+  const v = el.value.trim();
   if (k === 'repo' && v !== cloud.repo){ cloud.sha = ''; cloud.at = 0; cloudSyncRefresh(); }   // 换仓库 = 另一条历史
   if (k === 'pass') tokenCache = { key:'', token:'' };
   cloud[k] = v;
@@ -4295,7 +4316,7 @@ async function cloudUpload(){
     const r = await gh('PUT', '/contents/' + cloud.path, body);
     if (!r || !r.content) throw new Error('上传后没拿到版本号，再拉取一次确认');
     cloud.sha = r.content.sha; cloud.commit = (r.commit && r.commit.sha) || ''; cloud.at = Date.now(); saveCloud();
-    cloudSyncRefresh();
+    cloudSyncRefresh(); hideCloudBar();
     if (noteEl) noteEl.value = '';
     cloudMsg('已上传 · ' + cfgSummary(cfg) + ' · ' + fmtKB(packed.bytes) +
              (packed.imgs ? '（图片已压小）' : '') + ' · 备注「' + note + '」', 'ok');
@@ -4352,6 +4373,17 @@ async function cloudPick(){
   }finally{ cloudBusy = false; }
 }
 
+/* 取某个版本的配置文件并校验：版本弹层和顶部自动提醒共用 */
+async function cloudFetch(commitSha){
+  const f = await gh('GET', '/contents/' + cloud.path + '?ref=' + commitSha);
+  if (!f) throw new Error('这个版本里没有 ' + cloud.path);
+  let text, fileSha = f.sha || '';
+  if (f.content) text = utf8b64(f.content);
+  else text = await gh('GET', '/contents/' + cloud.path + '?ref=' + commitSha, null, true);   // 超过 1 MB 只能拿 raw
+  const c = JSON.parse(text);
+  if (!Array.isArray(c.prizes) || !c.prizes.length) throw new Error('这个版本里没有认得出来的奖品清单');
+  return { sha: commitSha, fileSha, cfg: fillCfg(c) };
+}
 async function cloudPreview(commitSha){
   const sum = $('clSum'), use = document.querySelector('[data-cl="use"]');
   Array.from(document.querySelectorAll('.clV')).forEach(r => r.classList.toggle('on', r.dataset.cv === commitSha));
@@ -4359,15 +4391,8 @@ async function cloudPreview(commitSha){
   cloudPicked = null;
   if (sum){ sum.textContent = '读取中…'; sum.className = 'clSum'; }
   try{
-    let f = await gh('GET', '/contents/' + cloud.path + '?ref=' + commitSha);
-    if (!f) throw new Error('这个版本里没有 ' + cloud.path);
-    let text, fileSha = f.sha || '';
-    if (f.content) text = utf8b64(f.content);
-    else text = await gh('GET', '/contents/' + cloud.path + '?ref=' + commitSha, null, true);   // 超过 1 MB 只能拿 raw
-    const c = JSON.parse(text);
-    if (!Array.isArray(c.prizes) || !c.prizes.length) throw new Error('这个版本里没有认得出来的奖品清单');
-    const next = fillCfg(c);
-    cloudPicked = { sha: commitSha, fileSha, cfg: next };
+    cloudPicked = await cloudFetch(commitSha);
+    const next = cloudPicked.cfg;
     if (sum){
       const names = next.prizes.map(p => p.nm).join('、');
       sum.textContent = cfgSummary(next) + '\n' + (names.length > 90 ? names.slice(0, 90) + '…' : names);
@@ -4385,9 +4410,65 @@ function cloudUse(){
   cfg = pk.cfg;
   saveCfg(); applyTheme();
   cloud.sha = pk.fileSha; cloud.commit = pk.sha; cloud.at = Date.now(); saveCloud();
-  closeCloudLayer();
+  closeCloudLayer(); hideCloudBar();
   backToGame(true);                       // 用拉到的清单重开一局
 }
+
+/* ---------- 自动检查：打开页面 / 回到页面时去云端看一眼 ----------
+   只在本机记住了口令、还没发出奖品（不打扰进行中的抽奖）时查；查到新版本只在顶上提醒，不自动换（换 = 重开一局）。
+   同一版本点过「不再提醒」记 cloud.skip；回到页面 5 分钟内不重复查；任何失败都静默。 */
+const CHECK_GAP = 5 * 60 * 1000;
+let cloudCheckedAt = 0, cloudHead = null;
+async function cloudCheck(){
+  if (cloud.auto === false || !cloud.pass || !cloud.repo) return;
+  if (Date.now() - cloudCheckedAt < CHECK_GAP) return;
+  if (prizeCount > 0 || pendingSave) return;
+  cloudCheckedAt = Date.now();
+  let list;
+  try{ list = await gh('GET', '/commits?path=' + cloud.path + '&sha=' + cloud.branch + '&per_page=1'); }
+  catch(e){ return; }
+  const c = list && list[0];
+  if (!c || c.sha === cloud.commit || c.sha === cloud.skip){ hideCloudBar(); return; }
+  cloudHead = c;
+  showCloudBar(c);
+}
+function showCloudBar(c){
+  const when = fmtWhen(new Date(c.commit.committer.date));
+  const who = (c.commit.author && c.commit.author.name) || (c.author && c.author.login) || '';
+  const msg = (c.commit.message || '').split(String.fromCharCode(10))[0];
+  const bar = $('cloudBar');
+  bar.innerHTML = '<span class="cbT">云端有新配置</span>' +
+    '<span class="cbM">' + esc(when) + (who ? ' · ' + esc(who) : '') + (msg ? '：' + esc(msg) : '') + '</span>' +
+    '<span class="cbA"><button class="btn main" data-cb="use">换上这版并重开</button>' +
+    '<button class="btn" data-cb="skip">这版不再提醒</button><button class="btn" data-cb="later">稍后</button></span>';
+  bar.classList.remove('hide');
+}
+function hideCloudBar(){ const bar = $('cloudBar'); if (!bar) return; bar.classList.add('hide'); bar.innerHTML = ''; }
+async function cloudBarUse(){
+  if (!cloudHead || cloudBusy) return;
+  const b = document.querySelector('[data-cb="use"]');
+  if (b){ b.disabled = true; b.textContent = '读取中…'; }
+  cloudBusy = true;
+  try{
+    const pk = await cloudFetch(cloudHead.sha);
+    cfg = pk.cfg;
+    saveCfg(); applyTheme();
+    cloud.sha = pk.fileSha; cloud.commit = pk.sha; cloud.at = Date.now(); saveCloud();
+    hideCloudBar();
+    backToGame(true);                     // 用新清单重开一局
+  }catch(err){
+    if (b){ b.disabled = false; b.textContent = '换上这版并重开'; }
+    const m = $('cloudBar').querySelector('.cbM');
+    if (m) m.textContent = '读取失败：' + cloudErr(err);
+  }finally{ cloudBusy = false; }
+}
+$('cloudBar').addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-cb]') : null;
+  if (!b) return;
+  if (b.dataset.cb === 'use') cloudBarUse();
+  else if (b.dataset.cb === 'skip'){ if (cloudHead){ cloud.skip = cloudHead.sha; saveCloud(); } hideCloudBar(); }
+  else hideCloudBar();
+});
 
 /* ---------- 口令锁：token 用小组口令加密后嵌进页面 ----------
    PBKDF2-SHA256 60 万次拉伸 → AES-GCM-256。锁串格式 v1.<salt>.<iv>.<密文>，全 base64url。
@@ -4506,6 +4587,8 @@ applyTheme();
 pendingSave = loadSave();     // 必须在 startGame 之前读：startGame 会立刻写一次新存档
 startGame();
 if (pendingSave) showResume(pendingSave);
+setTimeout(cloudCheck, 1500);                                   // 先把画面摆好再去云端看一眼
+document.addEventListener('visibilitychange', () => { if (!document.hidden) cloudCheck(); });   // 手机上放了一天再打开也会看
 
 let gearTimer = 0;
 $('gear').addEventListener('click', () => toggleEditor());
