@@ -1406,6 +1406,12 @@
       0 24px 44px rgba(0,0,0,.6);
   }
   .card.pk.flipped .front{transition:box-shadow .45s ease-out}   /* 归位到格子里后光淡掉，不突跳 */
+  /* iOS WebKit 在牌的图层重建那一帧会忘掉 backface 裁剪，把转到背后的正面画出来
+     （洗牌位移、每跳一次重新插 DOM、发号数字弹出都会重建图层；电脑浏览器没这事）。
+     扣着的牌把正面真的藏起来：延迟 .41s = 翻面 .82s 的一半，牌侧过去那一刻消失；
+     翻开（.flipped）时立刻恢复可见，翻面动画不受影响。牌背不管，露一下是花纹不泄露信息 */
+  .face{-webkit-backface-visibility:hidden}
+  .card:not(.flipped) .face.front{visibility:hidden; transition:visibility 0s linear .41s}
   /* 不预告品质（cfg.tease 关）：抖动阶段牌背用中性的冷白光、抖幅中档；
      品质光环 / 旋转光芒靠 data-r 触发，此时 data-r 还是 1，不会出现 */
   .card.pk.charging.plain{--rc:#f1f3ff; --rcrgb:241,243,255; --pow:1.2; --amp:3.5px}
@@ -1826,7 +1832,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-05 18:55';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-05 19:10';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
