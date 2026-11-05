@@ -1811,7 +1811,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-04 16:48';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-05 11:31';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3507,7 +3507,14 @@ function breakSectionHTML(){
 }
 
 /* ================= 输入 ================= */
+let lastAdvance = 0;
 function act(name){
+  if (name === 'advance' || name === 'decide'){            // 推进 / 确认：不管从哪个入口来，350ms 内只算一次
+    const now = Date.now();
+    if (now - lastAdvance < 350) return;
+    lastAdvance = now;
+  }
+  if (name === 'fullscreen'){ enterFullscreen(); return; }
   if (name === 'mute'){ cfg.mute = !cfg.mute; saveCfg(); sfxApplyVolume(); bgmApply(false); renderStatus(); return; }
   if (name === 'break'){ toggleBreak(); return; }
   if (name === 'rules'){ toggleRule(); return; }
@@ -3533,40 +3540,78 @@ function act(name){
   }
 }
 
-/* 遥控笔（翻页笔）本质是个 HID 键盘，按 PowerPoint 的约定发键：
-   下一页=PageDown、上一页=PageUp、黑屏=B、开始/结束放映=F5/Esc。
-   所以 PageDown/PageUp 要认，F5 要吞掉（否则整页重载），
-   Esc 不能再开编辑器 —— 它既是遥控笔的「结束放映」，也是浏览器退出全屏的键。 */
-const KEYS = { ArrowLeft:'left', ArrowRight:'right', PageUp:'left', PageDown:'advance',
-               KeyD:'redraw', KeyB:'break', KeyH:'rules', KeyM:'mute',
-               Space:'advance', Enter:'decide', KeyR:'restart' };
-const THROTTLED = { advance:1, decide:1 };   // 遥控笔长按会连发，推进类要节流
+/* 翻页笔的「播放」（F5）= 进全屏；它的「退出」（Esc）由浏览器自己退全屏，不用管。只进不切，笔的状态乱了也不会误退 */
+function enterFullscreen(){
+  const d = document.documentElement;
+  if (document.fullscreenElement || !d.requestFullscreen) return;
+  try{ const p = d.requestFullscreen(); if (p && p.catch) p.catch(() => {}); }catch(e){}
+}
+
+/* ───────── 输入：三套方案同时在听 ─────────
+   keyboard 键盘 / presenter 翻页笔 / touch 触屏（鼠标点按也走这套），各管各的一块，改一套只碰一块；
+   每套有 on 开关，排查问题时可以单独关掉某一套，现场默认全开。
+   翻页笔本质是个 HID 键盘，按 PowerPoint 的约定发键：下翻 = PageDown、上翻 = PageUp、
+   播放 / 退出 = F5 / Esc 交替、黑屏 = B（有的发 .）、超链接 = Tab / Enter，切到方向键模式就发上下左右。
+   键盘和翻页笔都从 keydown 进来：先问 presenter，它认就按它的规矩；不认再问 keyboard。
+   表里的值：'动作'，或 { pick:'动作', else:'动作' } 按当前屏分流，null = 这屏我不管（让给下一套）。
+   F5 任何时候都吞掉（否则整页重载）；Esc 只关不开，它也是浏览器退全屏的键。
+   推进 / 确认不管从哪套来，350ms 内只算一次（act 里守门）：两个人几乎同时按不会连走两步。 */
+const INPUT = {
+  keyboard: { on: true,
+    keys: { Space:'advance', Enter:'decide', ArrowLeft:'left', ArrowRight:'right',
+            KeyD:'redraw', KeyB:'break', KeyH:'rules', KeyM:'mute', KeyR:'restart',
+            Escape:'close', 'Ctrl+KeyE':'settings', 'Meta+KeyE':'settings' },
+    digits: true,                       // 选牌屏 1~9 直接选牌
+    repeat: 'throttle', gap: 350 },     // 长按：推进类 350ms 一步
+  presenter: { on: true,
+    keys: { PageDown:'advance', PageUp:'left', ArrowDown:'advance', ArrowUp:'left',
+            ArrowRight: { pick: null, else: 'advance' },   // 方向键模式的笔：选牌屏让给键盘的右移
+            Tab:'advance', Period:'break', F5:'fullscreen' },
+    repeat: 'ignore' },                 // 按住不放只算一次
+  touch: { on: true, tapStage: 'advance', tapCard: true, tapGap: 400, cardGap: 120, btnGap: 400 }
+};
+const THROTTLED = { advance:1, decide:1 };
 let lastKeyAct = 0;
+
+function inputResolve(e){
+  const mod = e.ctrlKey ? 'Ctrl+' : e.metaKey ? 'Meta+' : '';
+  for (const nm of ['presenter', 'keyboard']){
+    const sc = INPUT[nm];
+    if (!sc.on) continue;
+    let v = sc.keys[mod + e.code];
+    if (v === undefined) v = sc.keys[e.code];
+    if (v === undefined && sc.digits){ const dg = /^Digit([1-9])$/.exec(e.code); if (dg) v = 'pick' + dg[1]; }
+    if (v && typeof v === 'object') v = (mode in v) ? v[mode] : v.else;
+    if (v === undefined || v === null) continue;
+    return { scheme: sc, action: v };
+  }
+  return null;
+}
 
 addEventListener('keydown', e => {
   sfxUnlock();
-  if (e.code === 'F5'){ e.preventDefault(); return; }     // 遥控笔的「开始放映」，别让它重载
-  if (e.code === 'Escape'){                               // 只关不开
+  if (e.code === 'F5') e.preventDefault();                 // 遥控笔的「开始放映」，别让它重载
+  const hit = inputResolve(e);
+  if (!hit) return;
+  const sc = hit.scheme, a = hit.action;
+  if (a === 'close'){                                      // Esc：只关不开
     e.preventDefault();
     if (cloudLayerOpen()){ closeCloudLayer(); return; }    // 先关版本弹层，编辑器留着
     if (editorOpen) backToGame(false);
     return;
   }
-  if (e.code === 'KeyE' && (e.ctrlKey || e.metaKey)){      // 键盘开编辑器的入口
-    e.preventDefault(); toggleEditor(); return;
-  }
+  if (a === 'settings'){ e.preventDefault(); toggleEditor(); return; }
   if (editorOpen) return;
-  const dg = /^Digit([1-9])$/.exec(e.code);
-  if (dg && mode === 'pick'){ e.preventDefault(); pickCard(+dg[1] - 1); return; }
-  if (ruleOpen() && e.code !== 'KeyH') return;
-  if (breakOpen() && e.code !== 'KeyB') return;
+  const pk = /^pick([1-9])$/.exec(a);
+  if (pk){ if (mode === 'pick'){ e.preventDefault(); pickCard(+pk[1] - 1); } return; }
+  if (ruleOpen() && a !== 'rules') return;
+  if (breakOpen() && a !== 'break') return;
   if (!$('resumeLayer').classList.contains('hide')) return;
-  const a = KEYS[e.code];
-  if (!a) return;
   e.preventDefault();
-  if (THROTTLED[a]){
+  if (e.repeat && sc.repeat === 'ignore') return;
+  if (sc.repeat === 'throttle' && THROTTLED[a]){
     const now = Date.now();
-    if (now - lastKeyAct < 350) return;
+    if (now - lastKeyAct < sc.gap) return;
     lastKeyAct = now;
   }
   act(a);
@@ -3575,10 +3620,11 @@ addEventListener('keydown', e => {
 let lastBtn = 0;
 function onBtn(e){
   sfxUnlock();
+  if (!INPUT.touch.on) return;
   const b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
   if (!b) return;
   const now = Date.now();
-  if (now - lastBtn < 400) return;
+  if (now - lastBtn < INPUT.touch.btnGap) return;
   lastBtn = now;
   act(b.dataset.act);
 }
@@ -3591,6 +3637,7 @@ $('foot').addEventListener('touchend', onBtn, { passive:true });
 let lastTap = 0, lastCardTap = 0;
 $('game').addEventListener('click', e => {
   sfxUnlock();
+  if (!INPUT.touch.on) return;
   if (editorOpen) return;
   if (ruleOpen() || breakOpen()) return;
   if (!$('resumeLayer').classList.contains('hide')) return;
@@ -3599,21 +3646,21 @@ $('game').addEventListener('click', e => {
   if (t && t.closest && (t.closest('#foot') || t.closest('#editor') || t.closest('#gear') ||
       t.closest('#resumeLayer') || t.closest('#breakLayer') || t.closest('#ruleLayer'))) return;
   const now = Date.now();
-  if (mode === 'pick' && t && t.closest && t.closest('#cards')){
+  if (mode === 'pick' && INPUT.touch.tapCard && t && t.closest && t.closest('#cards')){
     // 牌走自己的节流：400ms 会把「点选 → 再点翻开」的第二下吞掉，
     // 这里只防触摸设备把一次点按发成两个事件
     const card = t.closest('.card.pk');
     if (!card) return;                   // 手机上牌小，戳到缝隙不能当成「翻高亮那张」
-    if (now - lastCardTap < 120) return;
+    if (now - lastCardTap < INPUT.touch.cardGap) return;
     lastCardTap = now;
     const i = +card.dataset.i;
     if (!isNaN(i)) pickCard(i);
     return;
   }
-  if (now - lastTap < 400) return;
+  if (now - lastTap < INPUT.touch.tapGap) return;
   lastTap = now;
   if (t && t.closest && t.closest('#spinHold')) return;   // 抽号按钮自己有处理
-  act('advance');
+  act(INPUT.touch.tapStage);
 });
 
 /* ================= 编辑器 ================= */
@@ -3714,7 +3761,9 @@ function renderEditor(){
       '<label class="sw"><input type="checkbox" data-f="tease"' + (cfg.tease ? ' checked' : '') + '>' +
       '开：翻面前牌背就按真实品质抖和亮　关：抖动中性，翻面那一刻才见品质</label></div>' +
     '<div class="tip2">抽号节奏：每批第一位和最后一位走完整三停，中间的人快停，最后一批最慢。' +
-      '滚动中再按一次空格 / 翻页笔（或点一下画面）= 剩下的滚轮立刻刹停。</div></div>';
+      '滚动中再按一次空格 / 翻页笔（或点一下画面）= 剩下的滚轮立刻刹停。</div>' +
+    '<div class="tip2">遥控笔：下翻 = 推进、上翻 = 选牌屏换高亮、播放 = 进全屏、退出 = 退全屏、黑屏键 = 休息页。'
+      '键盘、遥控笔、触屏三套同时有效，两个人几乎同时按只算一次。</div></div>';
 
   // 音效
   html += '<div class="sec"><h3>音效　<span class="h3s">M 键静音</span></h3>' +
