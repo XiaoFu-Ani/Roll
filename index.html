@@ -1782,6 +1782,24 @@
   .cbM{flex:1; min-width:140px; line-height:1.5}
   .cbA{display:flex; gap:8px; flex-wrap:wrap}
   .cbA .btn{padding:7px 12px; font-size:13px}
+
+  /* ============ 背景波点漂移改成整层平移（2026-11-09，Surface 掉帧） ============
+     原来动的是 background-position。这个属性显卡合成不了，每一帧都要主线程把这片比屏幕还大两成的背景重画一遍，
+     Surface 这类 2 倍像素密度 + 集成显卡 + 电池降频的机器扛不住
+     （按 Surface 分辨率模拟实测：首屏待机主线程每秒 165 帧重排 / 231 次重新光栅化 → 关掉漂移后 8 / 13）。
+     现在把整层向左上多铺两格间距，用 transform 平移两格：显卡拿着画好的一张图挪，主线程不参与。
+     两格是波点周期的整数倍，首尾无缝；方向、速度、轮次提速（上面的 animation-duration 覆盖）都不变 */
+  #bgFx{
+    inset:calc(-10% - var(--dotGap) * 2) -10% -10% calc(-10% - var(--dotGap) * 2);
+    animation-name:bgFxSlide;
+    will-change:transform;
+  }
+  @keyframes bgFxSlide{
+    from{transform:translate(0,0)}
+    to  {transform:translate(calc(var(--dotGap) * 2), calc(var(--dotGap) * 2))}
+  }
+  /* v5 的这条写在前面，会被上面的 animation-name 顶掉，这里再补一次 */
+  @media (prefers-reduced-motion:reduce){ #bgFx{animation:none} }
 </style>
 
 <body>
@@ -1839,7 +1857,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-06 10:44';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-09 11:17';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3205,7 +3223,7 @@ function startConfetti(originEl, intensity){
   const cv = document.getElementById('fx');
   if (!cv || !originEl) return;
 
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(1.5, window.devicePixelRatio || 1);
   const W = window.innerWidth, H = window.innerHeight;
   cv.width  = Math.round(W * dpr);
   cv.height = Math.round(H * dpr);
