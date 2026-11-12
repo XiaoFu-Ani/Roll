@@ -1857,7 +1857,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-09 11:17';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-12 12:29';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3650,8 +3650,20 @@ addEventListener('keydown', e => {
   if (editorOpen) return;
   const pk = /^pick([1-9])$/.exec(a);
   if (pk){ if (mode === 'pick'){ e.preventDefault(); pickCard(+pk[1] - 1); } return; }
-  if (ruleOpen() && a !== 'rules') return;
-  if (breakOpen() && a !== 'break') return;
+  // 规则页 / 休息页盖着时：本层自己的键（H；B / 句号）照旧走下面的切换；
+  // 「前进 / 确认」键只把这一层收掉，不推进流程 —— 得力笔只有上下翻页，没有 B 和 H，不这样它就回不来；
+  // 其它键一律挡住。收层也记一次 lastAdvance：笔按下回来的同一瞬间键盘再按一下，会被 350ms 守门吞掉，不多走一步
+  const layer = ruleOpen() ? 'rules' : breakOpen() ? 'break' : '';
+  if (layer && a !== layer){
+    if (a !== 'advance' && a !== 'decide') return;
+    e.preventDefault();
+    if (e.repeat && sc.repeat === 'ignore') return;
+    const now = Date.now();
+    if (now - lastAdvance < 350) return;
+    lastAdvance = now;
+    if (layer === 'rules') toggleRule(); else toggleBreak();
+    return;
+  }
   if (!$('resumeLayer').classList.contains('hide')) return;
   e.preventDefault();
   if (e.repeat && sc.repeat === 'ignore') return;
