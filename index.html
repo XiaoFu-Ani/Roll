@@ -1514,6 +1514,7 @@
     display:flex; align-items:center; justify-content:center; flex:none;
   }
   .prow .btn.mini img{width:20px; height:20px; object-fit:contain}
+  .prow .btn.mini.noimg{width:auto; padding:0 8px; font-size:11px; white-space:nowrap}   /* 只在设了图片的行出现 */
   .prow .inp.ico{width:44px; text-align:center; flex:none; padding:6px 4px}
   .prow .inp.nm{flex:1; min-width:0}
   .prow .inp.p3{width:66px; flex:none; padding:6px 7px}
@@ -1857,7 +1858,7 @@
    奖品是一张扁平清单，每件带一个「批次号」。批次由批次号分组得出，
    不需要单独的档位概念，也不需要数量（每件恒为 1）。
    价格只用于编辑器里的「帮我排一版」和你自己算账，从不显示给观众。 */
-const BUILD = 'v6 · 11-12 12:29';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
+const BUILD = 'v6 · 11-15 13:22';          // 组装时替换成构建时间；用来判断手机上是不是旧缓存
 const DEFAULT_CFG = {
   guests: 250,
   theme: { bg:'#171425', pattern:10, dotSize:13, dotGap:104 },
@@ -3854,6 +3855,8 @@ function renderEditor(){
     html += '<div class="prow">' +
       '<button class="btn mini" data-act="img" data-pi="' + i + '" title="换成图片">' +
         (p.img ? '<img src="' + p.img + '" alt="">' : esc(p.ico || '\u{1F381}')) + '</button>' +
+      // 设了自定义图片的行才出这个按钮：丢掉图片，回到旁边那格 emoji 图标
+      (p.img ? '<button class="btn mini noimg" data-act="noimg" data-pi="' + i + '" title="去掉图片，改回 emoji 图标">改回图标</button>' : '') +
       '<input class="inp ico" value="' + esc(p.ico || '') + '" data-p="' + i + '|ico" title="emoji">' +
       '<input class="inp nm" value="' + esc(p.nm || '') + '" data-p="' + i + '|nm">' +
       '<input class="inp num p3" type="number" min="0" value="' + (+p.price || 0) + '" data-p="' + i + '|price">' +
@@ -4057,6 +4060,7 @@ $('edBody').addEventListener('click', e => {
     saveCfg(); renderEditor(); return;
   }
   if (act2 === 'img'){ imgTarget = pi; $('fileImg').click(); return; }
+  if (act2 === 'noimg'){ const p = cfg.prizes[pi]; if (p){ p.img = null; saveCfg(); renderEditor(); } return; }
   if (act2 === 'cloudUp'){ cloudUpload(); return; }
   if (act2 === 'cloudDown'){ cloudPick(); return; }
   if (act2 === 'mkLock'){ lockGenerate(); return; }
