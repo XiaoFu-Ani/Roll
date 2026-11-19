@@ -1,6 +1,6 @@
 音效素材来源（均允许商用、无需署名）：
   Kenney（CC0，https://kenney.nl）：Casino Audio / Interface Sounds / UI Audio / Impact Sounds
-  400 Sounds Pack（https://ci.itch.io/400-sounds-pack，100% free for commercial use）：颤音琴 / 木琴 / 钢琴乐句、骰子、桌面敲击、纸牌扇动、掌声
+  400 Sounds Pack（https://ci.itch.io/400-sounds-pack，100% free for commercial use）：颤音琴 / 木琴 / 钢琴乐句、骰子、桌面敲击、纸牌扇动
   wind whoosh loop / Pop sounds / Pop effect sounds / Bubble Sound Effects / Kalimba Two-Notes（OpenGameArt，CC0）
 构建时内嵌进 index.html。对应关系：
   place.mp3 <- dl\x\kenney_casino-audio\Audio\card-place-2.ogg
@@ -18,7 +18,6 @@
   hit3.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_positive_long.wav + dl\itch\ci400\Other\subtle_knock.wav + dl\x\kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
   hit5.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_level_complete.wav + dl\itch\ci400\Other\subtle_knock.wav + dl\x\kenney_impact-sounds\Audio\impactSoft_heavy_000.ogg
   claim.mp3 <- dl\itch\ci400\Musical Effects\vibraphone_inn.wav
-  done.mp3 <- dl\itch\ci400\Other\applause.wav + dl\itch\ci400\Musical Effects\grand_piano_level_complete.wav
   shake.mp3 <- dl\itch\ci400\Card and Board\dice_shake_4.wav
   wind.mp3 <- dl\whoosh\wind_loop.ogg
   knock.mp3 <- dl\itch\ci400\Other\subtle_knock.wav
